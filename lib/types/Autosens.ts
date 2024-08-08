@@ -6,8 +6,8 @@ export const Autosens = t.intersection([
         ratio: t.number,
     }),
     t.partial({
-        newisf: t.number
-    })
-]);
+        newisf: t.number,
+    }),
+])
 
 export type Autosens = t.TypeOf<typeof Autosens>

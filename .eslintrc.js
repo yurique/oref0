@@ -38,7 +38,7 @@ module.exports = {
         'guard-for-in': 'error',
         'id-match': 'error',
         'no-bitwise': 'error',
-        'no-console': 'error',
+        'no-console': 'off',
         'no-eq-null': 'error',
         'no-extend-native': 'error',
         'no-extra-bind': 'error',
@@ -88,7 +88,13 @@ module.exports = {
         '@typescript-eslint/no-unused-vars': [
             'warn',
             {
-                argsIgnorePattern: '^_',
+                "args": "all",
+                "argsIgnorePattern": "^_",
+                "caughtErrors": "all",
+                "caughtErrorsIgnorePattern": "^_",
+                "destructuredArrayIgnorePattern": "^_",
+                "varsIgnorePattern": "^_",
+                "ignoreRestSiblings": true
             },
         ],
         '@typescript-eslint/no-shadow': ['error', { hoist: 'all', ignoreTypeValueShadow: true }],

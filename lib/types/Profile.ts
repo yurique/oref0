@@ -2,22 +2,24 @@ import * as t from 'io-ts'
 
 export interface BasalSchedule {
     i?: number
-    start: string,
-    minutes: number,
+    start: string
+    minutes: number
     rate: number
 }
 
-export const BasalSchedule: t.Type<BasalSchedule> = t.intersection([
-    t.type({
-        start: t.string,
-        minutes: t.number,
-        rate: t.number
-    }),
-    t.partial({
-        i: t.number
-    })
-], 'BasalSchedule')
-
+export const BasalSchedule: t.Type<BasalSchedule> = t.intersection(
+    [
+        t.type({
+            start: t.string,
+            minutes: t.number,
+            rate: t.number,
+        }),
+        t.partial({
+            i: t.number,
+        }),
+    ],
+    'BasalSchedule'
+)
 
 /**
  * {
@@ -155,33 +157,41 @@ export const BasalSchedule: t.Type<BasalSchedule> = t.intersection([
 
 export interface CarbRatioSchedule {
     start: string
-    offsset: number
+    offset: number
     ratio: number
 }
 
-export const CarbRatioSchedule: t.Type<CarbRatioSchedule> = t.type({
-    start: t.string,
-    offsset: t.number,
-    ratio: t.number,
-}, 'CarbRatioSchedule')
+export const CarbRatioSchedule: t.Type<CarbRatioSchedule> = t.type(
+    {
+        start: t.string,
+        offset: t.number,
+        ratio: t.number,
+    },
+    'CarbRatioSchedule'
+)
 
 export interface CarbRatios {
     units: string
-    schedule: Array<CarbRatioSchedule>,
+    schedule: Array<CarbRatioSchedule>
 }
 
-export const CarbRatios: t.Type<CarbRatios> = t.type({
-    units: t.string,
-    schedule: t.array(CarbRatioSchedule),
-}, 'CarbRatios')
+export const CarbRatios: t.Type<CarbRatios> = t.type(
+    {
+        units: t.string,
+        schedule: t.array(CarbRatioSchedule),
+    },
+    'CarbRatios'
+)
 
 export type InsulineCurve = 'bilinear' | 'rapid-acting' | 'ultra-rapid'
-export const InsulineCurve: t.Type<InsulineCurve> = t.keyof({
-    'bilinear': null,
-    'rapid-acting': null,
-    'ultra-rapid': null,
-}, 'InsulineCurve')
-
+export const InsulineCurve: t.Type<InsulineCurve> = t.keyof(
+    {
+        bilinear: null,
+        'rapid-acting': null,
+        'ultra-rapid': null,
+    },
+    'InsulineCurve'
+)
 
 export interface ISFSensitivity {
     i?: number
@@ -192,18 +202,21 @@ export interface ISFSensitivity {
     x?: number
 }
 
-export const ISFSensitivity: t.Type<ISFSensitivity> = t.intersection([
-    t.type({
-        offset: t.number,
-        endOffset: t.number,
-        sensitivity: t.number,
-    }),
-    t.partial({
-        i: t.number,
-        start: t.string,
-        x: t.number
-    })
-], 'ISFSensitivity')
+export const ISFSensitivity: t.Type<ISFSensitivity> = t.intersection(
+    [
+        t.type({
+            offset: t.number,
+            endOffset: t.number,
+            sensitivity: t.number,
+        }),
+        t.partial({
+            i: t.number,
+            start: t.string,
+            x: t.number,
+        }),
+    ],
+    'ISFSensitivity'
+)
 
 export interface ISFProfile {
     sensitivities: Array<ISFSensitivity>
@@ -211,21 +224,27 @@ export interface ISFProfile {
     user_preferred_units?: string
 }
 
-export const ISFProfile: t.Type<ISFProfile> = t.intersection([
-    t.type({
-        sensitivities: t.array(ISFSensitivity),
-    }),
-    t.partial({
-        units: t.string,
-        user_preferred_units: t.string
-    })
-], 'ISFProfile')
+export const ISFProfile: t.Type<ISFProfile> = t.intersection(
+    [
+        t.type({
+            sensitivities: t.array(ISFSensitivity),
+        }),
+        t.partial({
+            units: t.string,
+            user_preferred_units: t.string,
+        }),
+    ],
+    'ISFProfile'
+)
 
 export type GlucoseUnits = 'mg/dL' | 'mmol/L'
-export const GlucoseUnits = t.keyof({
-    'mg/dL': null,
-    'mmol/L': null,
-}, 'GlucoseUnits')
+export const GlucoseUnits = t.keyof(
+    {
+        'mg/dL': null,
+        'mmol/L': null,
+    },
+    'GlucoseUnits'
+)
 
 export interface Profile {
     basalprofile: Array<BasalSchedule>
@@ -246,6 +265,7 @@ export interface Profile {
     max_iob?: number
     min_bg?: number
     max_bg?: number
+    target_bg?: number
     A52_risk_enable?: boolean
     noisyCGMTargetMultiplier?: number
     maxRaw?: number
@@ -281,63 +301,66 @@ export interface Profile {
     SMBInterval?: number
 }
 
-export const Profile: t.Type<Profile> = t.intersection([
-    t.type({
-        basalprofile: t.array(BasalSchedule),
-        sens: t.number,
-        carb_ratio: t.number,
-        min_5m_carbimpact: t.number,
-    }),
-    t.partial({
-        out_units: t.keyof({
-            'mg/dL': null,
-            'mmol/L': null,
+export const Profile: t.Type<Profile> = t.intersection(
+    [
+        t.type({
+            basalprofile: t.array(BasalSchedule),
+            sens: t.number,
+            carb_ratio: t.number,
+            min_5m_carbimpact: t.number,
         }),
-        max_daily_safety_multiplier: t.number,
-        current_basal_safety_multiplier: t.number,
-        model: t.string,
-        curve: InsulineCurve,
-        dia: t.number,
-        useCustomPeakTime: t.boolean,
-        insulinPeakTime: t.number,
-        remainingCarbsCap: t.number,
-        remainingCarbsFraction: t.number,
-        maxCOB: t.number,
-        max_iob: t.number,
-        min_bg: t.number,
-        max_bg: t.number,
-        A52_risk_enable: t.boolean,
-        noisyCGMTargetMultiplier: t.number,
-        maxRaw: t.number,
-        low_temptarget_lowers_sensitivity: t.boolean,
-        high_temptarget_raises_sensitivity: t.boolean,
-        sensitivity_raises_target: t.boolean,
-        resistance_lowers_target: t.boolean,
-        autosens_max: t.number,
-        allowSMB_with_high_temptarget: t.boolean,
-        enableSMB_high_bg_target: t.number,
-        enableSMB_with_temptarget: t.boolean,
-        enableSMB_after_carbs: t.boolean,
-        enableSMB_with_COB: t.boolean,
-        enableSMB_high_bg: t.boolean,
-        enableSMB_always: t.boolean,
-        enableUAM: t.boolean,
-        suspend_zeros_iob: t.boolean,
-        current_basal: t.number,
-        half_basal_exercise_target: t.number,
-        exercise_mode: t.boolean,
-        temptargetSet: t.unknown,
-        max_daily_basal: t.number,
-        max_basal: t.number,
-        maxDelta_bg_threshold: t.number,
-        bg_targets: t.unknown,
-        isfProfile: ISFProfile,
-        carb_ratios: CarbRatios,
-        carbsReqThreshold: t.number,
-        skip_neutral_temps: t.boolean,
-        maxSMBBasalMinutes: t.number,
-        maxUAMSMBBasalMinutes: t.number,
-        bolus_increment: t.number,
-        SMBInterval: t.number,
-    })
-], 'Profile');
+        t.partial({
+            out_units: t.keyof({
+                'mg/dL': null,
+                'mmol/L': null,
+            }),
+            max_daily_safety_multiplier: t.number,
+            current_basal_safety_multiplier: t.number,
+            model: t.string,
+            curve: InsulineCurve,
+            dia: t.number,
+            useCustomPeakTime: t.boolean,
+            insulinPeakTime: t.number,
+            remainingCarbsCap: t.number,
+            remainingCarbsFraction: t.number,
+            maxCOB: t.number,
+            max_iob: t.number,
+            min_bg: t.number,
+            max_bg: t.number,
+            A52_risk_enable: t.boolean,
+            noisyCGMTargetMultiplier: t.number,
+            maxRaw: t.number,
+            low_temptarget_lowers_sensitivity: t.boolean,
+            high_temptarget_raises_sensitivity: t.boolean,
+            sensitivity_raises_target: t.boolean,
+            resistance_lowers_target: t.boolean,
+            autosens_max: t.number,
+            allowSMB_with_high_temptarget: t.boolean,
+            enableSMB_high_bg_target: t.number,
+            enableSMB_with_temptarget: t.boolean,
+            enableSMB_after_carbs: t.boolean,
+            enableSMB_with_COB: t.boolean,
+            enableSMB_high_bg: t.boolean,
+            enableSMB_always: t.boolean,
+            enableUAM: t.boolean,
+            suspend_zeros_iob: t.boolean,
+            current_basal: t.number,
+            half_basal_exercise_target: t.number,
+            exercise_mode: t.boolean,
+            temptargetSet: t.unknown,
+            max_daily_basal: t.number,
+            max_basal: t.number,
+            maxDelta_bg_threshold: t.number,
+            bg_targets: t.unknown,
+            isfProfile: ISFProfile,
+            carb_ratios: CarbRatios,
+            carbsReqThreshold: t.number,
+            skip_neutral_temps: t.boolean,
+            maxSMBBasalMinutes: t.number,
+            maxUAMSMBBasalMinutes: t.number,
+            bolus_increment: t.number,
+            SMBInterval: t.number,
+        }),
+    ],
+    'Profile'
+)

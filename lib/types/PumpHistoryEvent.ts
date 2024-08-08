@@ -7,33 +7,33 @@ export const NightscoutEventType = t.keyof({
     'Insulin Change': null,
     'Site Change': null,
     'Pump Battery Change': null,
-    'Announcement': null,
+    Announcement: null,
     'Sensor Start': null,
     'BG Check': null,
-    'Exercise': null,
+    Exercise: null,
     'Bolus Wizard': null,
 })
 
 export const EventType = t.union([
     NightscoutEventType,
     t.keyof({
-        'Bolus': null,
-        'SMB': null,
+        Bolus: null,
+        SMB: null,
         'External Insulin': null,
         'Meal Bolus': null,
         'Correction Bolus': null,
         'Snack Bolus': null,
-        'BolusWizard': null,
-        'TempBasal': null,
-        'TempBasalDuration': null,
-        'PumpSuspend': null,
-        'PumpResume': null,
-        'PumpAlarm': null,
-        'PumpBattery': null,
-        'Rewind': null,
-        'Prime': null,
-        'JournalEntryMealMarker': null,
-        'SuspendBasal': null,
+        BolusWizard: null,
+        TempBasal: null,
+        TempBasalDuration: null,
+        PumpSuspend: null,
+        PumpResume: null,
+        PumpAlarm: null,
+        PumpBattery: null,
+        Rewind: null,
+        Prime: null,
+        JournalEntryMealMarker: null,
+        SuspendBasal: null,
     }),
     t.string,
 ])
@@ -67,22 +67,22 @@ export const PumpHistoryEvent = t.intersection([
         isExternal: t.boolean,
         // @todo: check: used in iob/history
         //date: t.number,
-    })
+    }),
 ])
 
 export interface PumpHistoryEvent {
-    _type: EventType,
-    timestamp: string,
-    id?: string,
-    amount?: number,
-    duration?: number,
-    'duration (min)'?: number,
-    rate?: number,
-    temp?: TempType,
-    carb_input?: number,
-    note?: string,
-    isSMB?: boolean,
-    isExternal?: boolean,
+    _type: EventType
+    timestamp: string
+    id?: string
+    amount?: number
+    duration?: number
+    'duration (min)'?: number
+    rate?: number
+    temp?: TempType
+    carb_input?: number
+    note?: string
+    isSMB?: boolean
+    isExternal?: boolean
     // @todo: check: used in iob/history
     //date?: number,
 }

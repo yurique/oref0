@@ -1,5 +1,4 @@
-
-export type GlucoseEntry = {
+export interface GlucoseEntry {
     date?: number
     display_time?: string
     dateString?: string
