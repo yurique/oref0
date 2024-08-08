@@ -1,6 +1,6 @@
 import * as basalprofile from '../profile/basal'
 import { Profile } from '../types/Profile';
-import { toLocalDate } from '../date';
+import { tz } from '../date';
 import { PumpHistoryEvent } from '../types/PumpHistoryEvent';
 import { NightscoutTreatment } from '../types/NightscoutTreatment';
 import * as t from 'io-ts'
@@ -140,7 +140,7 @@ function splitAroundSuspends (currentEvent: BasalTreatment, pumpSuspends: PumpSu
         } else {
             currentEvent.duration = ((currentEvent.date+currentEvent.duration*60*1000)-firstResumeDate)/60/1000;
 
-            currentEvent.started_at = toLocalDate(firstResumeStarted);
+            currentEvent.started_at = tz(firstResumeStarted);
             currentEvent.date = firstResumeDate
         }
     }
@@ -175,7 +175,7 @@ function splitAroundSuspends (currentEvent: BasalTreatment, pumpSuspends: PumpSu
                     events.push({
                         ...events[j],
                         timestamp: date.format(event2StartDate),
-                        started_at: toLocalDate(event2StartDate),
+                        started_at: tz(event2StartDate),
                         date: suspend.date+suspend.duration*60*1000,
                         duration: ((events[j].date+events[j].duration*60*1000) - (suspend.date+suspend.duration*60*1000))/60/1000,
                     });
@@ -192,7 +192,7 @@ function splitAroundSuspends (currentEvent: BasalTreatment, pumpSuspends: PumpSu
                 eventStartDate.setMinutes(eventStartDate.getMinutes() + suspend.duration);
 
                 events[j].timestamp = date.format(eventStartDate);
-                events[j].started_at = toLocalDate(new Date(events[j].timestamp));
+                events[j].started_at = tz(new Date(events[j].timestamp));
                 events[j].date = suspend.date + suspend.duration*60*1000;
             }
         }
@@ -216,7 +216,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
     var currentlySuspended = false;
 
     // @todo: check if clock can be undefined
-    var now = toLocalDate(inputs.clock ? new Date(inputs.clock) : new Date());
+    var now = tz(inputs.clock ? new Date(inputs.clock) : new Date());
 
     var lastRecordTime = now;
 
@@ -228,7 +228,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
             continue;
         }
 
-        const started_at = toLocalDate(new Date(current.timestamp))
+        const started_at = tz(new Date(current.timestamp))
         const temp = {
             timestamp: current.timestamp,
             started_at,
@@ -310,7 +310,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
         }
 
         const timestamp = NightscoutTreatment.is(current) ? current.created_at : current.timestamp
-        var currentRecordTime = toLocalDate(new Date(timestamp))
+        var currentRecordTime = tz(new Date(timestamp))
         //console.error(current);
         //console.error(currentRecordTime,lastRecordTime);
         // ignore duplicate or out-of-order records (due to 1h and 24h overlap, or timezone changes)
@@ -322,7 +322,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
             lastRecordTime = currentRecordTime;
         }
         if (PumpHistoryEvent.is(current) && current._type === "Bolus") {
-            const started_at = toLocalDate(new Date(current.timestamp));
+            const started_at = tz(new Date(current.timestamp));
             if (started_at > now) {
                 //console.error("Warning: ignoring",current.amount,"U bolus in the future at",temp.started_at);
                 process.stderr.write(" "+current.amount+"U @ "+started_at);
@@ -338,7 +338,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
         } else if (NightscoutTreatment.is(current) && (current.eventType === "Meal Bolus" || current.eventType === "Correction Bolus" || current.eventType === "Snack Bolus" || current.eventType === "Bolus Wizard")) {
             //imports treatments entered through Nightscout Care Portal
             //"Bolus Wizard" refers to the Nightscout Bolus Wizard, not the Medtronic Bolus Wizard
-            const started_at = toLocalDate(new Date(current.created_at))
+            const started_at = tz(new Date(current.created_at))
             // @todo check for undefined insulin
             tempBoluses.push({
                 timestamp: current.created_at,
@@ -347,7 +347,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
                 insulin: current.insulin!
             });
         } else if (NightscoutTreatment.is(current) && current.enteredBy === "xdrip") {
-            const started_at = toLocalDate(new Date(current.created_at))
+            const started_at = tz(new Date(current.created_at))
             // @todo check for undefined insulin
             tempBoluses.push({
                 timestamp: current.created_at,
@@ -356,7 +356,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
                 insulin: current.insulin!
             });
         } else if (NightscoutTreatment.is(current) && current.enteredBy ==="HAPP_App" && current.insulin) {
-            const started_at = toLocalDate(new Date(current.created_at))
+            const started_at = tz(new Date(current.created_at))
             // @todo check for undefined insulin
             tempBoluses.push({
                 timestamp: current.created_at,
@@ -365,7 +365,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
                 insulin: current.insulin!
             });
         } else if (NightscoutTreatment.is(current) && current.eventType === "Temp Basal" && (current.enteredBy === "HAPP_App" || current.enteredBy === "openaps://AndroidAPS")) {
-            const started_at = toLocalDate(new Date(current.created_at))
+            const started_at = tz(new Date(current.created_at))
             // @todo check for undefined rate and duration
             tempHistory.push({
                 timestamp: current.created_at,
@@ -375,7 +375,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
                 duration: current.duration!,
             });
         } else if (NightscoutTreatment.is(current) && current.eventType === "Temp Basal") {
-            const started_at = toLocalDate(new Date(current.created_at))
+            const started_at = tz(new Date(current.created_at))
             let rate = current.rate
             // Loop reports the amount of insulin actually delivered while the temp basal was running
             // use that to calculate the effective temp basal rate
@@ -414,7 +414,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
                 }
             }
 
-            const started_at = toLocalDate(new Date(current.timestamp))
+            const started_at = tz(new Date(current.timestamp))
             // @todo check for undefined rate and duration
             tempHistory.push({
                 timestamp: current.timestamp,
@@ -506,7 +506,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
 
             var suspendStart = new Date(max_dia_ago);
             var suspendStartDate = suspendStart.getTime()
-            var started_at = toLocalDate(suspendStart);
+            var started_at = tz(suspendStart);
 
             zTempSuspendBasals.push({
                 rate: 0,
@@ -521,7 +521,7 @@ export default function calcTempTreatments (inputs: Input, zeroTempDuration?: nu
             // @todo check why lastSuspendTime can be undefined
             var suspendStart = lastSuspendTime ? new Date(lastSuspendTime) : new Date();
             var suspendStartDate = suspendStart.getTime()
-            var started_at = toLocalDate(suspendStart);
+            var started_at = tz(suspendStart);
 
             // @todo check why lastSuspendTime can be undefined
             zTempSuspendBasals.push({

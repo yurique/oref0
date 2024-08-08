@@ -28,3 +28,4 @@ package-lock.json
 
 bash-unit-test-temp
 docker-compose.override.yml
+dist/

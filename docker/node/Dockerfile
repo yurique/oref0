@@ -5,3 +5,4 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
     && chsh -s $(which zsh)
 COPY .zshrc /root/.zshrc
 RUN corepack enable
+ENV TZ='Europe/Rome' 

@@ -1,7 +1,7 @@
 import find_insulin from './history'
 import type { Input } from './history'
 import sum from './total'
-import { toLocalDate } from '../date';
+import { tz } from '../date';
 import { InsulinTreatment, isBasalTreatment, isBolusTreatment } from './InsulinTreatment';
 
 interface IOB {
@@ -54,7 +54,7 @@ export default function generate (inputs: Input, currentIOBOnly: boolean = false
     if (! /(Z|[+-][0-2][0-9]:?[034][05])+/.test(inputs.clock) ) {
         console.error("Warning: clock input " + inputs.clock + " is unzoned; please pass clock-zoned.json instead");
     }
-    var clock = toLocalDate(new Date(inputs.clock));
+    var clock = tz(new Date(inputs.clock));
 
     var lastBolusTime = new Date(0).getTime(); //clock.getTime());
     var lastTemp = {

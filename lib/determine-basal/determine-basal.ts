@@ -217,8 +217,6 @@ var determine_basal = function determine_basal(
         deliverAt = currentTime;
     }
 
-    console.log({ deliverAt, currentTime })
-
     if (typeof profile === 'undefined' || typeof profile.current_basal === 'undefined') {
         rT.error ='Error: could not get current basal rate';
         return rT;

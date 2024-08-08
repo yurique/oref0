@@ -19,7 +19,7 @@
   THE SOFTWARE.
 
 */
-var autotune = require('../lib/autotune');
+var autotune = require('../dist/autotune');
 var stringify = require('json-stable-stringify');
 
 if (!module.parent) {

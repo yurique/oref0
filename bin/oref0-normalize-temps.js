@@ -15,9 +15,9 @@
 
 */
 
-var find_insulin = require('../lib/temps');
-var find_bolus = require('../lib/bolus');
-var describe_pump = require('../lib/pump');
+var find_insulin = require('../dist/temps');
+var find_bolus = require('../dist/bolus');
+var describe_pump = require('../dist/pump');
 var fs = require('fs');
 
 

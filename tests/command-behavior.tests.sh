@@ -16,6 +16,8 @@ cleanup () {
 main () {
     mkdir -p bash-unit-test-temp || fail_test "Unable to create temporary directory"
 
+    npm run build
+
     cd bash-unit-test-temp
 
     generate_test_files
@@ -124,6 +126,7 @@ test-autotune-prep () {
 
     ERROR_LINE_COUNT=$( cat stderr_output | wc -l )
     ERROR_LINES=$( cat stderr_output )
+    
     [[ $(cat stderr_output | grep mealCOB | wc -l) -eq 82 ]] || fail_test "oref0-autotune-prep didn't contain expected stderr output"
 
     # Make sure output has expected data
@@ -157,6 +160,7 @@ test-autotune-prep () {
 
     # Make sure output has expected data
     cat stdout_output | jq ".CRData | first" | grep -q CRInitialBG || fail_test "oref0-autotune-prep with carbhistory didn't contain expected CR Data output"
+    # @todo: why the first CSFGlucoseData should be null?
     cat stdout_output | jq ".CSFGlucoseData | first" | grep -q null || fail_test "oref0-autotune-prep with carbhistory didn't contain expected CSF Glucose Data"
     cat stdout_output | jq ".ISFGlucoseData | first" | grep -q dateString || fail_test "oref0-autotune-prep with carbhistory didn't contain expected ISF Glucose Data"
     cat stdout_output | jq ".basalGlucoseData | first" | grep -q dateString || fail_test "oref0-autotune-prep with carbhistory didn't contain expected basal Glucose Data"

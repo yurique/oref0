@@ -20,8 +20,8 @@
 
 */
 
-var generate = require('../lib/meal');
-var shared_node_utils = require('./oref0-shared-node-utils');
+var generate = require('../dist/meal');
+var shared_node_utils = require('../dist/bin/utils');
 var console_error = shared_node_utils.console_error;
 var console_log = shared_node_utils.console_log;
 var process_exit = shared_node_utils.process_exit;
