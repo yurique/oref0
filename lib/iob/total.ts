@@ -1,12 +1,21 @@
-'use strict';
+import { Autosens } from "../types/Autosens";
+import { InsulineCurve, Profile } from "../types/Profile";
+import { InsulinTreatment, isBolusTreatment } from "./InsulinTreatment";
+import calculate from './calculate'
 
-function iobTotal(opts, time) {
+interface Options {
+    treatments: InsulinTreatment[];
+    profile: Profile;
+    autosens?: Autosens
+}
+
+export default function iobTotal(opts: Options, time: Date) {
 
     var now = time.getTime();
-    var iobCalc = opts.calculate;
+    var iobCalc = calculate;
     var treatments = opts.treatments;
     var profile_data = opts.profile;
-    var dia = profile_data.dia;
+    var dia = profile_data.dia || 3;
     var peak = 0;
     var iob = 0;
     var basaliob = 0;
@@ -15,7 +24,9 @@ function iobTotal(opts, time) {
     var bolusinsulin = 0;
     //var bolussnooze = 0;
     var activity = 0;
-    if (!treatments) return {};
+    if (!treatments) {
+        return null
+    };
     //if (typeof time === 'undefined') {
         //var time = new Date();
     //}
@@ -26,7 +37,13 @@ function iobTotal(opts, time) {
         dia = 3;
     }
 
-    var curveDefaults = {
+    var curveDefaults: {
+        [k in InsulineCurve]: {
+            requireLongDia: boolean,
+            peak: number,
+            tdMin?: number
+        }
+    } = {
         'bilinear': {
             requireLongDia: false,
             peak: 75 // not really used, but prevents having to check later
@@ -43,15 +60,12 @@ function iobTotal(opts, time) {
         },
     };
 
-    var curve = 'bilinear';
+    let curve = profile_data.curve || 'bilinear';
 
-    if (profile_data.curve !== undefined) {
-        curve = profile_data.curve.toLowerCase();
-    }
-
-    if (!(curve in curveDefaults)) {
+    // @todo: remove when decoding
+    if (!InsulineCurve.is(curve)) {
         console.error('Unsupported curve function: "' + curve + '". Supported curves: "bilinear", "rapid-acting" (Novolog, Novorapid, Humalog, Apidra) and "ultra-rapid" (Fiasp). Defaulting to "rapid-acting".');
-        curve = 'rapid-acting';
+        curve = 'rapid-acting' as InsulineCurve;
     }
 
     var defaults = curveDefaults[curve];
@@ -77,7 +91,7 @@ function iobTotal(opts, time) {
                 // {"insulin":0.05,"date":1507266530000,"created_at":"2017-10-06T05:08:50.000Z"}
                 // boluses look like:
                 // {"timestamp":"2017-10-05T22:06:31-07:00","started_at":"2017-10-06T05:06:31.000Z","date":1507266391000,"insulin":0.5}
-                if (treatment.insulin && tIOB && tIOB.iobContrib) {
+                if (isBolusTreatment(treatment) && treatment.insulin && tIOB && tIOB.iobContrib) {
                     if (treatment.insulin < 0.1) {
                         basaliob += tIOB.iobContrib;
                         netbasalinsulin += treatment.insulin;

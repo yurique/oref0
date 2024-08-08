@@ -1,0 +1,622 @@
+import * as basalprofile from '../profile/basal'
+import { Profile } from '../types/Profile';
+import { toLocalDate } from '../date';
+import { PumpHistoryEvent } from '../types/PumpHistoryEvent';
+import { NightscoutTreatment } from '../types/NightscoutTreatment';
+import * as t from 'io-ts'
+import { Autosens } from '../types/Autosens';
+import { BasalTreatment, BolusTreatment, InsulinTreatment } from "./InsulinTreatment";
+import * as date from '../date'
+
+interface Splitter {
+    type: 'recurring'
+    minutes: number
+}
+
+interface PumpSuspendResume {
+    timestamp: string
+    started_at: Date
+    date: number
+    duration: number
+}
+
+const Input = t.intersection([
+    t.type({
+        history: t.array(t.union([
+            NightscoutTreatment,
+            PumpHistoryEvent
+        ])),
+        profile: Profile,
+    }),
+    t.partial({
+        history24: t.array(t.union([
+            NightscoutTreatment,
+            PumpHistoryEvent
+        ])),
+        autosens: Autosens,
+        clock: t.string,
+    })
+])
+
+export type Input = t.TypeOf<typeof Input>
+
+function splitTimespanWithOneSplitter(event: BasalTreatment, splitter: Splitter) {
+
+    if (splitter.type !== 'recurring') {
+        return [event]
+    }
+
+    var startMinutes = event.started_at.getHours() * 60 + event.started_at.getMinutes();
+    var endMinutes = startMinutes + event.duration;
+
+    if (! (event.duration > 30 || (startMinutes < splitter.minutes && endMinutes > splitter.minutes) || (endMinutes > 1440 && splitter.minutes < (endMinutes - 1440)))) {
+        return [event]
+    }
+
+    // 1440 = one day; no clean way to check if the event overlaps midnight
+    // so checking if end of event in minutes is past midnight
+
+    var event1Duration = 0;
+
+    if (event.duration > 30) {
+        event1Duration = 30;
+    } else {
+        var splitPoint = splitter.minutes;
+        if (endMinutes > 1440) {
+            splitPoint = 1440;
+        }
+        event1Duration = splitPoint - startMinutes;
+    }
+
+    const event1EndDate = new Date(event.started_at)
+    event1EndDate.setMinutes(event1EndDate.getMinutes() + event1Duration)
+
+    var event1 = {
+        ...event,
+        duration: event1Duration
+    };
+    var event2 = {
+        ...event,
+        duration: event.duration - event1Duration,
+        timestamp: date.format(event1EndDate),
+        started_at: event1EndDate,
+        date: event1EndDate.getTime(),
+    }
+
+    return [event1, event2];
+}
+
+function splitTimespan(event: BasalTreatment, splitterMoments: Splitter[]) {
+
+    var results = [event];
+
+    var splitFound = true;
+
+    while(splitFound) {
+
+        let resultArray: BasalTreatment[] = [];
+        splitFound = false;
+
+        for (let i = 0; i < results.length; i++) {
+            const o = results[i]
+            for (let j = 0; j < splitterMoments.length; j++) {
+                const p = splitterMoments[j]
+                var splitResult = splitTimespanWithOneSplitter(o,p);
+                if (splitResult.length > 1) {
+                    resultArray = resultArray.concat(splitResult);
+                    splitFound = true;
+                    break;
+                }
+            }
+
+            if (!splitFound) {
+                resultArray = resultArray.concat([o]);
+            };
+        }
+
+        results = resultArray;
+    }
+
+    return results;
+}
+
+// Split currentEvent around any conflicting suspends
+// by removing the time period from the event that
+// overlaps with any suspend.
+function splitAroundSuspends (currentEvent: BasalTreatment, pumpSuspends: PumpSuspendResume[], firstResumeTime: string | undefined, suspendedPrior: boolean, lastSuspendTime: string | undefined, currentlySuspended: boolean): BasalTreatment[] {
+    var events = [];
+
+    // @todo: check why it can be undefined
+    var firstResumeStarted = firstResumeTime ? new Date(firstResumeTime) : new Date(0);
+    var firstResumeDate = firstResumeStarted.getTime()
+
+    // @todo: check why it can be undefined
+    var lastSuspendStarted = lastSuspendTime ? new Date(lastSuspendTime) : new Date();
+    var lastSuspendDate = lastSuspendStarted.getTime();
+
+    if (suspendedPrior && (currentEvent.date < firstResumeDate)) {
+        if ((currentEvent.date+currentEvent.duration*60*1000) < firstResumeDate) {
+            currentEvent.duration = 0;
+        } else {
+            currentEvent.duration = ((currentEvent.date+currentEvent.duration*60*1000)-firstResumeDate)/60/1000;
+
+            currentEvent.started_at = toLocalDate(firstResumeStarted);
+            currentEvent.date = firstResumeDate
+        }
+    }
+
+    if (currentlySuspended && ((currentEvent.date+currentEvent.duration*60*1000) > lastSuspendDate)) {
+        if (currentEvent.date > lastSuspendDate) {
+            currentEvent.duration = 0;
+        } else {
+            currentEvent.duration = (firstResumeDate - currentEvent.date)/60/1000;
+        }
+    }
+
+    events.push(currentEvent);
+
+    if (currentEvent.duration === 0) {
+        // bail out rather than wasting time going through the rest of the suspend events
+        return events;
+    }
+
+    for (var i=0; i < pumpSuspends.length; i++) {
+        var suspend = pumpSuspends[i];
+
+        for (var j=0; j < events.length; j++) {
+
+            if ((events[j].date <= suspend.date) && (events[j].date+events[j].duration*60*1000) > suspend.date) {
+                // event started before the suspend, but finished after the suspend started
+
+                if ((events[j].date+events[j].duration*60*1000) > (suspend.date+suspend.duration*60*1000)) {
+                    var event2StartDate = new Date(suspend.started_at)
+                    event2StartDate.setMinutes(event2StartDate.getMinutes() + suspend.duration)
+
+                    events.push({
+                        ...events[j],
+                        timestamp: date.format(event2StartDate),
+                        started_at: toLocalDate(event2StartDate),
+                        date: suspend.date+suspend.duration*60*1000,
+                        duration: ((events[j].date+events[j].duration*60*1000) - (suspend.date+suspend.duration*60*1000))/60/1000,
+                    });
+                }
+
+                events[j].duration = (suspend.date-events[j].date)/60/1000;
+
+            } else if ((suspend.date <= events[j].date) && (suspend.date+suspend.duration*60*1000 > events[j].date)) {
+                // suspend started before the event, but finished after the event started
+            
+                events[j].duration = ((events[j].date+events[j].duration*60*1000) - (suspend.date+suspend.duration*60*1000))/60/1000;
+
+                const eventStartDate = new Date(suspend.started_at)
+                eventStartDate.setMinutes(eventStartDate.getMinutes() + suspend.duration);
+
+                events[j].timestamp = date.format(eventStartDate);
+                events[j].started_at = toLocalDate(new Date(events[j].timestamp));
+                events[j].date = suspend.date + suspend.duration*60*1000;
+            }
+        }
+    }
+
+    return events;
+}
+
+
+export default function calcTempTreatments (inputs: Input, zeroTempDuration?: number): InsulinTreatment[] {
+    let pumpHistory = [...inputs.history, ...(inputs.history24 || [])]
+    var profile_data = inputs.profile;
+    var autosens_data = inputs.autosens;
+    var tempHistory: BasalTreatment[] = [];
+    var tempBoluses: BolusTreatment[] = [];
+    var pumpSuspends: PumpSuspendResume[] = [];
+    var pumpResumes: PumpSuspendResume[] = [];
+    var suspendedPrior = false;
+    var firstResumeTime: string | undefined
+    let lastSuspendTime: string | undefined;
+    var currentlySuspended = false;
+
+    // @todo: check if clock can be undefined
+    var now = toLocalDate(inputs.clock ? new Date(inputs.clock) : new Date());
+
+    var lastRecordTime = now;
+
+    // Gather the times the pump was suspended and resumed
+    for (var i=0; i < pumpHistory.length; i++) {
+        const current = pumpHistory[i];
+
+        if (! PumpHistoryEvent.is(current) || (current._type !== 'PumpSuspend' && current._type !== 'PumpResume')) {
+            continue;
+        }
+
+        const started_at = toLocalDate(new Date(current.timestamp))
+        const temp = {
+            timestamp: current.timestamp,
+            started_at,
+            date: started_at.getTime(),
+            duration: 0,
+        }
+
+        if (current._type === "PumpSuspend") {
+            pumpSuspends.push(temp);
+        } else if (current._type === "PumpResume") {
+            pumpResumes.push(temp);
+        }
+    }
+
+    pumpSuspends = pumpSuspends.sort((a, b) => a.date - b.date)
+    pumpResumes =  pumpResumes.sort((a, b) => a.date - b.date)
+
+    if (pumpResumes.length > 0) {
+        firstResumeTime = pumpResumes[0].timestamp;
+
+        // Check to see if our first resume was prior to our first suspend
+        // indicating suspend was prior to our first event.
+        if (pumpSuspends.length === 0 || (pumpResumes[0].date < pumpSuspends[0].date)) {
+            suspendedPrior = true;
+        }
+
+    }
+
+    var j=0;  // matching pumpResumes entry;
+
+    // Match the resumes with the suspends to get durations
+    for (i=0; i < pumpSuspends.length; i++) {
+        for (; j < pumpResumes.length; j++) {
+            if (pumpResumes[j].date > pumpSuspends[i].date) {
+                break;
+            }
+        }
+
+        if ((j >= pumpResumes.length) && !currentlySuspended) {
+            // even though it isn't the last suspend, we have reached
+            // the final suspend. Set resume last so the
+            // algorithm knows to suspend all the way
+            // through the last record beginning at the last suspend
+            // since we don't have a matching resume.
+            currentlySuspended = true;
+            lastSuspendTime = pumpSuspends[i].timestamp;
+
+            break;
+        }
+
+        pumpSuspends[i].duration = (pumpResumes[j].date - pumpSuspends[i].date)/60/1000;
+
+    }
+
+    // These checks indicate something isn't quite aligned.
+    // Perhaps more resumes that suspends or vice versa...
+    if (!suspendedPrior && !currentlySuspended && (pumpResumes.length !== pumpSuspends.length)) {
+        console.error("Mismatched number of resumes("+pumpResumes.length+") and suspends("+pumpSuspends.length+")!");
+    } else if (suspendedPrior && !currentlySuspended && ((pumpResumes.length-1) !== pumpSuspends.length)) {
+        console.error("Mismatched number of resumes("+pumpResumes.length+") and suspends("+pumpSuspends.length+") assuming suspended prior to history block!");
+    } else if (!suspendedPrior && currentlySuspended && (pumpResumes.length !== (pumpSuspends.length-1))) {
+        console.error("Mismatched number of resumes("+pumpResumes.length+") and suspends("+pumpSuspends.length+") assuming suspended past end of history block!");
+    } else if (suspendedPrior && currentlySuspended && (pumpResumes.length !== pumpSuspends.length)) {
+        console.error("Mismatched number of resumes("+pumpResumes.length+") and suspends("+pumpSuspends.length+") assuming suspended prior to and past end of history block!");
+    }
+
+    if (i < (pumpSuspends.length-1)) {
+        // truncate any extra suspends. if we had any extras
+        // the error checks above would have issued a error log message
+        pumpSuspends.splice(i+1, pumpSuspends.length-i-1);
+    }
+
+    // Pick relevant events for processing and clean the data
+
+    for (i=0; i < pumpHistory.length; i++) {
+        let current: NightscoutTreatment | PumpHistoryEvent = pumpHistory[i];
+        if (NightscoutTreatment.is(current) && current.bolus && current.bolus._type === "Bolus") {
+            current = current.bolus;
+        }
+
+        const timestamp = NightscoutTreatment.is(current) ? current.created_at : current.timestamp
+        var currentRecordTime = toLocalDate(new Date(timestamp))
+        //console.error(current);
+        //console.error(currentRecordTime,lastRecordTime);
+        // ignore duplicate or out-of-order records (due to 1h and 24h overlap, or timezone changes)
+        if (currentRecordTime > lastRecordTime) {
+            //console.error("",currentRecordTime," > ",lastRecordTime);
+            //process.stderr.write(".");
+            continue;
+        } else {
+            lastRecordTime = currentRecordTime;
+        }
+        if (PumpHistoryEvent.is(current) && current._type === "Bolus") {
+            const started_at = toLocalDate(new Date(current.timestamp));
+            if (started_at > now) {
+                //console.error("Warning: ignoring",current.amount,"U bolus in the future at",temp.started_at);
+                process.stderr.write(" "+current.amount+"U @ "+started_at);
+            } else {
+                // @todo check for undefined insulin
+                tempBoluses.push({
+                    timestamp: current.timestamp,
+                    started_at,
+                    date: started_at.getTime(),
+                    insulin: current.amount!,
+                });
+            }
+        } else if (NightscoutTreatment.is(current) && (current.eventType === "Meal Bolus" || current.eventType === "Correction Bolus" || current.eventType === "Snack Bolus" || current.eventType === "Bolus Wizard")) {
+            //imports treatments entered through Nightscout Care Portal
+            //"Bolus Wizard" refers to the Nightscout Bolus Wizard, not the Medtronic Bolus Wizard
+            const started_at = toLocalDate(new Date(current.created_at))
+            // @todo check for undefined insulin
+            tempBoluses.push({
+                timestamp: current.created_at,
+                started_at,
+                date: started_at.getTime(),
+                insulin: current.insulin!
+            });
+        } else if (NightscoutTreatment.is(current) && current.enteredBy === "xdrip") {
+            const started_at = toLocalDate(new Date(current.created_at))
+            // @todo check for undefined insulin
+            tempBoluses.push({
+                timestamp: current.created_at,
+                started_at,
+                date: started_at.getTime(),
+                insulin: current.insulin!
+            });
+        } else if (NightscoutTreatment.is(current) && current.enteredBy ==="HAPP_App" && current.insulin) {
+            const started_at = toLocalDate(new Date(current.created_at))
+            // @todo check for undefined insulin
+            tempBoluses.push({
+                timestamp: current.created_at,
+                started_at,
+                date: started_at.getTime(),
+                insulin: current.insulin!
+            });
+        } else if (NightscoutTreatment.is(current) && current.eventType === "Temp Basal" && (current.enteredBy === "HAPP_App" || current.enteredBy === "openaps://AndroidAPS")) {
+            const started_at = toLocalDate(new Date(current.created_at))
+            // @todo check for undefined rate and duration
+            tempHistory.push({
+                timestamp: current.created_at,
+                started_at,
+                date: started_at.getTime(),
+                rate: current.absolute!,
+                duration: current.duration!,
+            });
+        } else if (NightscoutTreatment.is(current) && current.eventType === "Temp Basal") {
+            const started_at = toLocalDate(new Date(current.created_at))
+            let rate = current.rate
+            // Loop reports the amount of insulin actually delivered while the temp basal was running
+            // use that to calculate the effective temp basal rate
+            if (typeof current.amount !== 'undefined') {
+                // @todo: fix type for duration possibly undefined
+                rate = current.amount / current.duration! * 60;
+            }
+            // @todo check for undefined rate and duration
+            tempHistory.push({
+                timestamp: current.created_at,
+                started_at,
+                date: started_at.getTime(),
+                rate: rate!,
+                duration: current.duration!,
+            });
+        } else if (PumpHistoryEvent.is(current) && current._type === "TempBasal") {
+            if (current.temp === 'percent') {
+                continue;
+            }
+            var rate = current.rate;
+            let duration;
+            const previous = i > 0 ? pumpHistory[i-1] : undefined
+            if (PumpHistoryEvent.is(previous) && previous.timestamp === timestamp && previous._type === "TempBasalDuration") {
+                duration = previous['duration (min)'];
+            } else {
+                for (var iter=0; iter < pumpHistory.length; iter++) {
+                    const item = pumpHistory[iter]
+                    if (PumpHistoryEvent.is(item) && item.timestamp === timestamp && item._type === "TempBasalDuration") {
+                        duration = item['duration (min)'];
+                        break;
+                    }
+                }
+
+                if (duration === undefined) {
+                    console.error("No duration found for "+rate+" U/hr basal "+timestamp, pumpHistory[i - 1], current, pumpHistory[i + 1]);
+                }
+            }
+
+            const started_at = toLocalDate(new Date(current.timestamp))
+            // @todo check for undefined rate and duration
+            tempHistory.push({
+                timestamp: current.timestamp,
+                started_at,
+                date: started_at.getTime(),
+                rate: rate!,
+                duration: duration!,
+            });
+        }
+
+        // Add a temp basal cancel event to ignore future temps and reduce predBG oscillation
+        // start the zero temp 1m in the future to avoid clock skew
+        const started_at = new Date(now.getTime() + (1 * 60 * 1000));
+        tempHistory.push({
+            timestamp: started_at.toISOString(),
+            started_at,
+            date: started_at.getTime(),
+            rate: 0,
+            duration: zeroTempDuration || 0
+        });
+    }
+
+    // Check for overlapping events and adjust event lengths in case of overlap
+
+    tempHistory = tempHistory.sort((a, b) => a.date - b.date)
+
+    for (i=0; i < tempHistory.length -1; i++) {
+        const item = tempHistory[i]
+        const next = tempHistory[i+1]
+        // @todo: check duration when undefined (or null)
+        if (item.date + (item.duration || 0) * 60*1000 > next.date) {
+            tempHistory[i].duration = (next.date - item.date)/60/1000;
+            // Delete AndroidAPS "Cancel TBR records" in which duration is not populated
+            if (next.duration === null || next.duration === undefined) {
+                tempHistory.splice(i+1, 1);
+            }
+        }
+    }
+
+    // Create an array of moments to slit the temps by
+    // currently supports basal changes
+
+    const splitterEvents = (profile_data.basalprofile || []).map(o => ({
+        type: 'recurring' as const,
+        minutes: o.minutes,
+    }))
+
+    // iterate through the events and split at basal break points if needed
+    const splitHistoryByBasal = tempHistory.reduce(
+        (b, o) => ([...b, ...splitTimespan(o, splitterEvents)]),
+        [] as BasalTreatment[]
+    )
+
+    // @todo: not necessary: remove
+    tempHistory = tempHistory.sort((a, b) => a.date - b.date)
+
+    var suspend_zeros_iob = profile_data.suspend_zeros_iob || false;
+    let splitHistory = splitHistoryByBasal;
+
+    if (suspend_zeros_iob) {
+        // iterate through the events and adjust their 
+        // times as required to account for pump suspends
+        splitHistory = splitHistoryByBasal.reduce(
+            (b, a) => [...b, ...splitAroundSuspends(a, pumpSuspends, firstResumeTime, suspendedPrior, lastSuspendTime, currentlySuspended)],
+            [] as BasalTreatment[]
+        )
+
+        // Any existing temp basals during times the pump was suspended are now deleted
+        // Add 0 temp basals to negate the profile basal rates during times pump is suspended
+        let zTempSuspendBasals = pumpSuspends.reduce(
+            (b, a) => [...b,  { ...a, rate: 0 }],
+            [] as (PumpSuspendResume & { rate: number })[]
+        )
+
+        // Add temp suspend basal for maximum DIA (8) up to the resume time
+        // if there is no matching suspend in the history before the first
+        // resume
+        var max_dia_ago = now.getTime() - 8*60*60*1000;
+        // @todo check why firstResumeStarted can be undefined
+        var firstResumeStarted = firstResumeTime ? new Date(firstResumeTime) : new Date();
+        var firstResumeDate = firstResumeStarted.getTime()
+
+        // impact on IOB only matters if the resume occurred
+        // after DIA hours before now.
+        // otherwise, first resume date can be ignored. Whatever
+        // insulin is present prior to resume will be aged
+        // out due to DIA.
+        if (suspendedPrior && (max_dia_ago < firstResumeDate)) {
+
+            var suspendStart = new Date(max_dia_ago);
+            var suspendStartDate = suspendStart.getTime()
+            var started_at = toLocalDate(suspendStart);
+
+            zTempSuspendBasals.push({
+                rate: 0,
+                duration: (firstResumeDate - max_dia_ago)/60/1000,
+                date: suspendStartDate,
+                started_at,
+                timestamp: suspendStart.toISOString()
+            })
+        }
+
+        if (currentlySuspended) {
+            // @todo check why lastSuspendTime can be undefined
+            var suspendStart = lastSuspendTime ? new Date(lastSuspendTime) : new Date();
+            var suspendStartDate = suspendStart.getTime()
+            var started_at = toLocalDate(suspendStart);
+
+            // @todo check why lastSuspendTime can be undefined
+            zTempSuspendBasals.push({
+                rate: 0,
+                duration: (now.getTime() - suspendStartDate)/60/1000,
+                date: suspendStartDate,
+                started_at,
+                timestamp: lastSuspendTime!,
+            })
+        }
+
+        // Add the new 0 temp basals to the splitHistory.
+        // We have to split the new zero temp basals by the profile
+        // basals just like the other temp basals.
+        splitHistory = zTempSuspendBasals.reduce(
+            (b, a) => [...b, ...splitTimespan(a, splitterEvents)],
+            splitHistory
+        )
+    }
+
+    splitHistory = splitHistory.sort((a, b) => a.date - b.date)
+
+    // tempHistory = splitHistory;
+
+    // iterate through the temp basals and create bolus events from temps that affect IOB
+
+    for (i=0; i < splitHistory.length; i++) {
+
+        var currentItem = splitHistory[i];
+
+        if (currentItem.duration > 0) {
+            var target_bg;
+
+            var currentRate = profile_data.current_basal;
+            if (profile_data.basalprofile && profile_data.basalprofile.length > 0) {
+                currentRate = basalprofile.basalLookup(
+                    profile_data.basalprofile,
+                    new Date(currentItem.timestamp)
+                );
+            }
+
+            if (typeof profile_data.min_bg !== 'undefined' && typeof profile_data.max_bg !== 'undefined') {
+                target_bg = (profile_data.min_bg + profile_data.max_bg) / 2;
+            }
+            //if (profile_data.temptargetSet && target_bg > 110) {
+                //sensitivityRatio = 2/(2+(target_bg-100)/40);
+                //currentRate = profile_data.current_basal * sensitivityRatio;
+            //}
+            var sensitivityRatio;
+            var profile = profile_data;
+            var normalTarget = 100; // evaluate high/low temptarget against 100, not scheduled basal (which might change)
+            if ( profile.half_basal_exercise_target ) {
+                var halfBasalTarget = profile.half_basal_exercise_target;
+            } else {
+                halfBasalTarget = 160 as t.Int; // when temptarget is 160 mg/dL, run 50% basal (120 = 75%; 140 = 60%)
+            }
+            if ( profile.exercise_mode && profile.temptargetSet && target_bg && target_bg >= normalTarget + 5 ) {
+                // w/ target 100, temp target 110 = .89, 120 = 0.8, 140 = 0.67, 160 = .57, and 200 = .44
+                // e.g.: Sensitivity ratio set to 0.8 based on temp target of 120; Adjusting basal from 1.65 to 1.35; ISF from 58.9 to 73.6
+                var c = halfBasalTarget - normalTarget;
+                sensitivityRatio = c/(c+target_bg-normalTarget);
+            } else if (typeof autosens_data !== 'undefined' ) {
+                sensitivityRatio = autosens_data.ratio;
+                //process.stderr.write("Autosens ratio: "+sensitivityRatio+"; ");
+            }
+
+            // @check why currentRate can be undefined
+            currentRate = currentRate || 0
+            if ( sensitivityRatio ) {
+                currentRate = currentRate * sensitivityRatio;
+            }
+
+            var netBasalRate = currentItem.rate - currentRate;
+            const tempBolusSize = netBasalRate < 0 ? -0.05 : 0.05;
+            var netBasalAmount = Math.round(netBasalRate*currentItem.duration*10/6)/100
+            var tempBolusCount = Math.round(netBasalAmount / tempBolusSize);
+            var tempBolusSpacing = currentItem.duration / tempBolusCount;
+            for (j=0; j < tempBolusCount; j++) {
+                const tempBolusDate = currentItem.date + j * tempBolusSpacing*60*1000
+                tempBoluses.push({
+                    insulin: tempBolusSize,
+                    date: tempBolusDate,
+                    started_at: new Date(tempBolusDate),
+                    timestamp:  new Date(tempBolusDate).toISOString()
+                });
+            }
+        }
+    }
+
+    const all_data = [
+        ...tempBoluses,
+        ...tempHistory
+    ]
+
+    return all_data.sort((a, b) => a.date - b.date)
+}
+
+exports = module.exports = calcTempTreatments;

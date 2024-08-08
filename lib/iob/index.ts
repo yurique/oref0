@@ -1,52 +1,75 @@
-'use strict';
+import find_insulin from './history'
+import type { Input } from './history'
+import sum from './total'
+import { toLocalDate } from '../date';
+import { InsulinTreatment, isBasalTreatment, isBolusTreatment } from './InsulinTreatment';
 
-var tz = require('moment-timezone');
-var find_insulin = require('./history');
-var calculate = require('./calculate');
-var sum = require('./total');
+interface IOB {
+    iob: number;
+    activity: number;
+    basaliob: number;
+    bolusiob: number;
+    netbasalinsulin: number;
+    bolusinsulin: number;
+    time: Date;
+}
 
-function generate (inputs, currentIOBOnly, treatments) {
+interface IOBItem extends IOB {
+    iobWithZeroTemp?: IOB
+    lastBolusTime?: number
+    lastTemp?: {
+        date: number
+        duration: number
+    }
+}
 
+export default function generate (inputs: Input, currentIOBOnly: boolean = false, treatments?: InsulinTreatment[]) {
+
+    let treatmentsWithZeroTemp: InsulinTreatment[] = []
     if (!treatments) {
-        var treatments = find_insulin(inputs);
+        treatments = find_insulin(inputs);
         // calculate IOB based on continuous future zero temping as well
-        var treatmentsWithZeroTemp = find_insulin(inputs, 240);
-    } else {
-        var treatmentsWithZeroTemp = [];
+        treatmentsWithZeroTemp = find_insulin(inputs, 240);
     }
     //console.error(treatments.length, treatmentsWithZeroTemp.length);
     //console.error(treatments[treatments.length-1], treatmentsWithZeroTemp[treatmentsWithZeroTemp.length-1])
 
     var opts = {
-        treatments: treatments
-    , profile: inputs.profile
-    , calculate: calculate
+        treatments: treatments,
+        profile: inputs.profile,
+        autosens: inputs.autosens
     };
-    if ( inputs.autosens ) {
-        opts.autosens = inputs.autosens;
-    }
     var optsWithZeroTemp = {
-        treatments: treatmentsWithZeroTemp
-    , profile: inputs.profile
-    , calculate: calculate
+        treatments: treatmentsWithZeroTemp,
+        profile: inputs.profile,
     };
 
-    var iobArray = [];
+    if (!inputs.clock) {
+        console.error("Clock is not defined");
+        return []
+    }
+
+    var iobArray: IOBItem[] = [];
     //console.error(inputs.clock);
     if (! /(Z|[+-][0-2][0-9]:?[034][05])+/.test(inputs.clock) ) {
         console.error("Warning: clock input " + inputs.clock + " is unzoned; please pass clock-zoned.json instead");
     }
-    var clock = new Date(tz(inputs.clock));
+    var clock = toLocalDate(new Date(inputs.clock));
 
     var lastBolusTime = new Date(0).getTime(); //clock.getTime());
-    var lastTemp = {};
-    lastTemp.date = new Date(0).getTime(); //clock.getTime());
+    var lastTemp = {
+        date: new Date(0).getTime(), //clock.getTime());
+        duration: 0,
+    };
     //console.error(treatments[treatments.length-1]);
     treatments.forEach(function(treatment) {
-        if (treatment.insulin && treatment.started_at) {
-            lastBolusTime = Math.max(lastBolusTime,treatment.started_at);
+        if (isBolusTreatment(treatment) && treatment.insulin > 0) {
+            if (treatment.started_at.getTime() > lastBolusTime) {
+                lastBolusTime = treatment.started_at.getTime()
+            }
+            //lastBolusTime = Math.max(lastBolusTime, treatment.started_at.getTime());
             //console.error(treatment.insulin,treatment.started_at,lastBolusTime);
-        } else if (typeof(treatment.rate) === 'number' && treatment.duration ) {
+        } else if (isBasalTreatment(treatment) && treatment.duration > 0) {
             if ( treatment.date > lastTemp.date ) {
                 lastTemp = treatment;
                 lastTemp.duration = Math.round(lastTemp.duration*100)/100;
@@ -57,6 +80,7 @@ function generate (inputs, currentIOBOnly, treatments) {
         //console.error(treatment.rate, treatment.duration, treatment.started_at,lastTemp.started_at)
         //if (treatment.insulin && treatment.started_at) { console.error(treatment.insulin,treatment.started_at,lastBolusTime); }
     });
+
     var iStop;
     if (currentIOBOnly) {
         // for COB calculation, we only need the zeroth element of iobArray
@@ -70,6 +94,10 @@ function generate (inputs, currentIOBOnly, treatments) {
         //console.error(t);
         var iob = sum(opts, t);
         var iobWithZeroTemp = sum(optsWithZeroTemp, t);
+
+        if (! iob || !iobWithZeroTemp) {
+            continue;
+        }
         //console.error(opts.treatments[opts.treatments.length-1], optsWithZeroTemp.treatments[optsWithZeroTemp.treatments.length-1])
         iobArray.push(iob);
         //console.error(iob.iob, iobWithZeroTemp.iob);

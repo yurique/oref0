@@ -1,6 +1,12 @@
-'use strict';
+import { Profile } from "../types/Profile";
+import { BolusTreatment, InsulinTreatment, isBolusTreatment } from "./InsulinTreatment";
 
-function iobCalc(treatment, time, curve, dia, peak, profile) {
+interface IobCalcResult {
+    activityContrib?: number;
+    iobContrib?: number;
+}
+
+export default function iobCalc(treatment: InsulinTreatment, time: Date | undefined, curve: 'bilinear' | string, dia: number, peak: number, profile: Profile): IobCalcResult {
     // iobCalc returns two variables:
     //   activityContrib = units of treatment.insulin used in previous minute
     //   iobContrib = units of treatment.insulin still remaining at a given point in time
@@ -11,14 +17,11 @@ function iobCalc(treatment, time, curve, dia, peak, profile) {
     //   An exponential insulin action curve (which takes both a dia and a peak parameter)
     // (which functional form to use is specified in the user's profile)
 
-    if (treatment.insulin) {
+    if (isBolusTreatment(treatment)) {
 
-        // Calc minutes since bolus (minsAgo)
-        if (typeof time === 'undefined') {
-            time = new Date();
-        }
+        time = time || new Date()
         var bolusTime = new Date(treatment.date);
-        var minsAgo = Math.round((time - bolusTime) / 1000 / 60);
+        var minsAgo = Math.round((time.getTime() - bolusTime.getTime()) / 1000 / 60);
 
 
         if (curve === 'bilinear') {
@@ -33,7 +36,7 @@ function iobCalc(treatment, time, curve, dia, peak, profile) {
 }
 
 
-function iobCalcBilinear(treatment, minsAgo, dia) {
+function iobCalcBilinear(treatment: BolusTreatment, minsAgo: number, dia: number) {
     
     var default_dia = 3.0 // assumed duration of insulin activity, in hours
     var peak = 75;        // assumed peak insulin activity, in minutes
@@ -80,7 +83,7 @@ function iobCalcBilinear(treatment, minsAgo, dia) {
 }
 
 
-function iobCalcExponential(treatment, minsAgo, dia, peak, profile) {
+function iobCalcExponential(treatment: BolusTreatment, minsAgo: number, dia: number, peak: number, profile: Profile) {
 
     // Use custom peak time (in minutes) if value is valid
     if ( profile.curve === "rapid-acting" ) {
