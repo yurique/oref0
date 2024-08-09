@@ -16,7 +16,23 @@ export interface Options {
     clock: string
 }
 
-export default function recentCarbs(opts: Options, time: Date) {
+export interface RecentCarbs {
+    carbs: number
+    nsCarbs: number
+    bwCarbs: number
+    journalCarbs: number
+    mealCOB: number
+    currentDeviation: number
+    maxDeviation: number
+    minDeviation: number
+    slopeFromMaxDeviation: number
+    slopeFromMinDeviation: number
+    allDeviations: number[]
+    lastCarbTime: number
+    bwFound: boolean
+}
+
+export default function recentCarbs(opts: Options, time: Date): Partial<RecentCarbs> {
     const treatments = opts.treatments
     const profile_data = opts.profile
     const glucose_data = opts.glucose
