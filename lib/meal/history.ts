@@ -42,7 +42,7 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
         (a: string, b: string) => Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 2000
     )
 
-    for (var i = 0; i < carbHistory.length; i++) {
+    for (let i = 0; i < carbHistory.length; i++) {
         const current = carbHistory[i]
         if (current.carbs && current.created_at) {
             mealInputs.push(
@@ -54,7 +54,7 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
         }
     }
 
-    for (i = 0; i < pumpHistory.length; i++) {
+    for (let i = 0; i < pumpHistory.length; i++) {
         const current = pumpHistory[i]
         if (PumpHistoryEvent.is(current) && current._type === 'Bolus' && current.timestamp) {
             //console.log(pumpHistory[i]);
@@ -114,7 +114,7 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
         }
     }
 
-    for (i = 0; i < bolusWizardInputs.length; i++) {
+    for (let i = 0; i < bolusWizardInputs.length; i++) {
         const current = bolusWizardInputs[i]
         //console.log(bolusWizardInputs[i]);
         const temp = createMeal(current.timestamp, {

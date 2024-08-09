@@ -2,7 +2,7 @@ import get_iob from '../iob'
 import type { Input as IOBInput } from '../iob/history'
 import find_insulin from '../iob/history'
 import * as basal from '../profile/basal'
-import isf from '../profile/isf'
+import { isfLookup } from '../profile/isf'
 import type { GlucoseEntry } from '../types/GlucoseEntry'
 import type { BasalSchedule } from '../types/Profile'
 
@@ -138,7 +138,7 @@ export default function detectCarbAbsorption(inputs: DetectCOBInput) {
         const bgTime = new Date(bucketed_data[i].date)
 
         let sens = null
-        ;[sens, lastIsfResult] = isf.isfLookup(profile.isfProfile, bgTime, lastIsfResult)
+        ;[sens, lastIsfResult] = isfLookup(profile.isfProfile, bgTime, lastIsfResult)
 
         //console.error(bgTime , bucketed_data[i].glucose, bucketed_data[i].date);
         let bg

@@ -2,7 +2,7 @@ import type { FinalResult } from '../bin/utils'
 import { console_error } from '../bin/utils'
 import { maxDailyBasal, basalLookup, maxBasalLookup } from './basal'
 import carb_ratios from './carbs'
-import isf from './isf'
+import { isfLookup } from './isf'
 import * as targets from './targets'
 
 export function defaults() {
@@ -159,7 +159,7 @@ export default function generate(final_result: FinalResult, inputs: any, opts: a
 
     profile.temptargetSet = range.temptargetSet
     let lastResult = null
-    ;[profile.sens, lastResult] = isf.isfLookup(inputs.isf, undefined, lastResult)
+    ;[profile.sens, lastResult] = isfLookup(inputs.isf, undefined, lastResult)
     profile.isfProfile = inputs.isf
     if (profile.sens < 5) {
         console_error(final_result, 'ISF of', profile.sens, 'is not supported')

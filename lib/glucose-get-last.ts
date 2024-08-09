@@ -1,15 +1,13 @@
-import type { GlucoseEntry } from './types/GlucoseEntry'
+import { getGlucoseEntryDate, type GlucoseEntry } from './types/GlucoseEntry'
 
 function getDateFromEntry(entry: GlucoseEntry) {
-    if (entry.date) {
-        return entry.date
-    } else if (entry.display_time) {
-        return Date.parse(entry.display_time)
-    } else if (entry.dateString) {
-        return Date.parse(entry.dateString)
+    const date = getGlucoseEntryDate(entry)
+
+    if (!date) {
+        throw new TypeError('Unable to find a date in GlucoseEntry')
     }
 
-    throw new TypeError('Unable to find a date in GlucoseEntry')
+    return date
 }
 
 const getLastGlucose = function (input: GlucoseEntry[]) {
@@ -22,7 +20,7 @@ const getLastGlucose = function (input: GlucoseEntry[]) {
     )
 
     const now = data[0]
-    let now_date = getDateFromEntry(now)
+    let now_date = getDateFromEntry(now).getTime()
     let change
     const last_deltas = []
     const short_deltas = []
@@ -39,7 +37,7 @@ const getLastGlucose = function (input: GlucoseEntry[]) {
         // only use data from the same device as the most recent BG data point
         if (typeof data[i] !== 'undefined' && data[i].glucose > 38 && data[i].device === now.device) {
             const then = data[i]
-            const then_date = getDateFromEntry(then)
+            const then_date = getDateFromEntry(then).getTime()
             let avgdelta = 0
             let minutesago
             if (typeof then_date !== 'undefined' && typeof now_date !== 'undefined') {

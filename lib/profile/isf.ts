@@ -1,6 +1,6 @@
 import type { ISFProfile, ISFSensitivity } from '../types/Profile'
 
-export default function isfLookup(
+export function isfLookup(
     isf_profile: ISFProfile,
     timestamp: Date | undefined,
     lastResult: ISFSensitivity | null
@@ -42,5 +42,6 @@ export default function isfLookup(
     ]
 }
 
+export default isfLookup
 isfLookup.isfLookup = isfLookup
 exports = module.exports = isfLookup

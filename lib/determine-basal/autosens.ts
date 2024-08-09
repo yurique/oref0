@@ -1,33 +1,50 @@
-'use strict'
+import { tz } from '../date'
+import get_iob from '../iob'
+import find_insulin from '../iob/history'
+import type { CarbEntry } from '../meal/history'
+import find_meals from '../meal/history'
+import percentile from '../percentile'
+import { basalLookup } from '../profile/basal'
+import { isfLookup } from '../profile/isf'
+import type { GlucoseEntry } from '../types/GlucoseEntry'
+import { getGlucoseEntryDate } from '../types/GlucoseEntry'
+import type { BasalSchedule, ISFSensitivity } from '../types/Profile'
+import type { TempTarget } from '../types/TempTarget'
 
-const date = require('../date')
-const get_iob = require('../iob')
-const find_insulin = require('../iob/history')
-const find_meals = require('../meal/history')
-const percentile = require('../percentile')
-const basal = require('../profile/basal')
-const isf = require('../profile/isf')
-const tz = date.tz
+interface Inputs {
+    glucose_data: GlucoseEntry[]
+    iob_inputs: any
+    basalprofile: BasalSchedule[]
+    retrospective?: boolean
+    carbs: CarbEntry[]
+    temptargets: TempTarget[]
+    deviations?: number
+}
 
-function detectSensitivity(inputs) {
+function detectSensitivity(inputs: Inputs) {
     //console.error(inputs.glucose_data[0]);
     const glucose_data = inputs.glucose_data.map(obj => {
         //Support the NS sgv field to avoid having to convert in a custom way
-        obj.glucose = obj.glucose || obj.sgv
-        return obj
+        return {
+            ...obj,
+            glucose: obj.glucose || obj.sgv!,
+        }
     })
     //console.error(glucose_data[0]);
     const iob_inputs = inputs.iob_inputs
     const basalprofile = inputs.basalprofile
     const profile = inputs.iob_inputs.profile
 
+    let lastSiteChange = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
     // use last 24h worth of data by default
     if (inputs.retrospective) {
-        //console.error(glucose_data[0]);
-        var lastSiteChange = new Date(new Date(glucose_data[0].date).getTime() - 24 * 60 * 60 * 1000)
-    } else {
-        lastSiteChange = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
+        const firstDate = getGlucoseEntryDate(glucose_data[0])
+        if (!firstDate) {
+            throw new Error('Unable to find glucose date for first item')
+        }
+        lastSiteChange = new Date(firstDate.getTime() - 24 * 60 * 60 * 1000)
     }
+
     if (inputs.iob_inputs.profile.rewind_resets_autosens === true) {
         // scan through pumphistory and set lastSiteChange to the time of the last pump rewind event
         // if not present, leave lastSiteChange unchanged at 24h ago.
@@ -67,7 +84,7 @@ function detectSensitivity(inputs) {
     const avgDeltas = []
     const bgis = []
     const deviations = []
-    let deviationSum = 0
+    //let deviationSum = 0
     const bucketed_data = []
     glucose_data.reverse()
     bucketed_data[0] = glucose_data[0]
@@ -75,45 +92,49 @@ function detectSensitivity(inputs) {
     let j = 0
     // go through the meal treatments and remove any that are older than the oldest glucose value
     //console.error(meals);
-    for (var i = 1; i < glucose_data.length; ++i) {
-        var bgTime
-        var lastbgTime
-        if (glucose_data[i].display_time) {
-            bgTime = new Date(glucose_data[i].display_time.replace('T', ' '))
-        } else if (glucose_data[i].dateString) {
-            bgTime = new Date(glucose_data[i].dateString)
-        } else if (glucose_data[i].xDrip_started_at) {
+    for (let i = 1; i < glucose_data.length; ++i) {
+        let bgTime
+        let lastbgTime
+        const entry = glucose_data[i]
+        const previous = glucose_data[i - 1]
+        if (entry.display_time) {
+            bgTime = new Date(entry.display_time.replace('T', ' '))
+        } else if (entry.dateString) {
+            bgTime = new Date(entry.dateString)
+        } else if (entry.xDrip_started_at) {
             continue
         } else {
             console.error('Could not determine BG time')
+            continue
         }
-        if (glucose_data[i - 1].display_time) {
-            lastbgTime = new Date(glucose_data[i - 1].display_time.replace('T', ' '))
-        } else if (glucose_data[i - 1].dateString) {
-            lastbgTime = new Date(glucose_data[i - 1].dateString)
+        if (previous.display_time) {
+            lastbgTime = new Date(previous.display_time.replace('T', ' '))
+        } else if (previous.dateString) {
+            lastbgTime = new Date(previous.dateString)
         } else if (bucketed_data[0].display_time) {
             lastbgTime = new Date(bucketed_data[0].display_time.replace('T', ' '))
         } else if (glucose_data[i - 1].xDrip_started_at) {
             continue
         } else {
             console.error('Could not determine last BG time')
+            continue
         }
-        if (glucose_data[i].glucose < 39 || glucose_data[i - 1].glucose < 39) {
+        if (entry.glucose < 39 || glucose_data[i - 1].glucose < 39) {
             //console.error("skipping:",glucose_data[i].glucose,glucose_data[i-1].glucose);
             continue
         }
         // only consider BGs since lastSiteChange
         if (lastSiteChange) {
-            const hoursSinceSiteChange = (bgTime - lastSiteChange) / (60 * 60 * 1000)
+            const hoursSinceSiteChange = (bgTime.getTime() - lastSiteChange.getTime()) / (60 * 60 * 1000)
             if (hoursSinceSiteChange < 0) {
                 //console.error(hoursSinceSiteChange, bgTime, lastSiteChange);
                 continue
             }
         }
-        const elapsed_minutes = (bgTime - lastbgTime) / (60 * 1000)
+        const elapsed_minutes = (bgTime.getTime() - lastbgTime.getTime()) / (60 * 1000)
         if (Math.abs(elapsed_minutes) > 2) {
             j++
-            bucketed_data[j] = glucose_data[i]
+            bucketed_data[j] = entry
             bucketed_data[j].date = bgTime.getTime()
             //console.error(elapsed_minutes, bucketed_data[j].glucose, glucose_data[i].glucose);
         } else {
@@ -123,20 +144,20 @@ function detectSensitivity(inputs) {
     }
     bucketed_data.shift()
     //console.error(bucketed_data[0]);
-    for (i = meals.length - 1; i > 0; --i) {
-        var treatment = meals[i]
+    for (let i = meals.length - 1; i > 0; --i) {
+        const treatment = meals[i]
         //console.error(treatment);
         if (treatment) {
-            var treatmentDate = new Date(tz(treatment.timestamp))
-            var treatmentTime = treatmentDate.getTime()
-            var glucoseDatum = bucketed_data[0]
+            const treatmentDate = new Date(tz(treatment.timestamp))
+            const treatmentTime = treatmentDate.getTime()
+            const glucoseDatum = bucketed_data[0]
             //console.error(glucoseDatum);
             if (!glucoseDatum || !glucoseDatum.date) {
                 //console.error("No date found on: ",glucoseDatum);
                 continue
             }
-            var BGDate = new Date(glucoseDatum.date)
-            var BGTime = BGDate.getTime()
+            const BGDate = new Date(glucoseDatum.date)
+            const BGTime = BGDate.getTime()
             if (treatmentTime < BGTime) {
                 //console.error("Removing old meal: ",treatmentDate);
                 meals.splice(i, 1)
@@ -149,21 +170,23 @@ function detectSensitivity(inputs) {
     let mealCarbs = 0
     let mealStartCounter = 999
     let type = ''
-    let lastIsfResult = null
+    let lastIsfResult: ISFSensitivity | null = null
     //console.error(bucketed_data);
-    for (i = 3; i < bucketed_data.length; ++i) {
-        bgTime = new Date(bucketed_data[i].date)
-        var sens
-        ;[sens, lastIsfResult] = isf.isfLookup(profile.isfProfile, bgTime, lastIsfResult)
-
+    for (let i = 3; i < bucketed_data.length; ++i) {
+        const bucketed = bucketed_data[i]
+        const bgTime = new Date(bucketed.date!)
+        const [sens, isf_res] = isfLookup(profile.isfProfile, bgTime, lastIsfResult)
+        lastIsfResult = isf_res as ISFSensitivity | null
         //console.error(bgTime , bucketed_data[i].glucose);
-        var bg
-        var avgDelta
-        var delta
+        let bg
+        let avgDelta
+        let delta
+        let last_bg
+        let old_bg
         if (typeof bucketed_data[i].glucose !== 'undefined') {
             bg = bucketed_data[i].glucose
-            var last_bg = bucketed_data[i - 1].glucose
-            var old_bg = bucketed_data[i - 3].glucose
+            last_bg = bucketed_data[i - 1].glucose
+            old_bg = bucketed_data[i - 3].glucose
             if (
                 isNaN(bg) ||
                 !bg ||
@@ -185,9 +208,9 @@ function detectSensitivity(inputs) {
             continue
         }
 
-        avgDelta = avgDelta.toFixed(2)
+        avgDelta = Math.round(avgDelta * 100) / 100
         iob_inputs.clock = bgTime
-        iob_inputs.profile.current_basal = basal.basalLookup(basalprofile, bgTime)
+        iob_inputs.profile.current_basal = basalLookup(basalprofile, bgTime)
         // make sure autosens doesn't use temptarget-adjusted insulin calculations
         iob_inputs.profile.temptargetSet = false
         //console.log(JSON.stringify(iob_inputs.profile));
@@ -196,12 +219,13 @@ function detectSensitivity(inputs) {
         //console.error("After: ", new Date().getTime());
         //console.log(JSON.stringify(iob));
 
-        let bgi = Math.round(-iob.activity * sens * 5 * 100) / 100
-        bgi = bgi.toFixed(2)
+        const bgi = Math.round(-iob.activity * sens * 5 * 100) / 100
+        //bgi = bgi.toFixed(2)
         //console.error(delta);
-        var deviation
+        let deviation
         if (isNaN(delta)) {
             console.error('Bad delta: ', delta, bg, last_bg, old_bg)
+            continue
         } else {
             deviation = delta - bgi
         }
@@ -210,24 +234,27 @@ function detectSensitivity(inputs) {
         if (bg < 80 && deviation > 0) {
             deviation = 0
         }
-        deviation = deviation.toFixed(2)
+        deviation = Math.round(deviation * 100) / 100
 
-        glucoseDatum = bucketed_data[i]
+        let glucoseDatum: GlucoseEntry & {
+            glucose: number
+            mealCarbs?: number
+        } = bucketed_data[i]
         //console.error(glucoseDatum);
-        BGDate = new Date(glucoseDatum.date)
-        BGTime = BGDate.getTime()
+        const BGDate = new Date(glucoseDatum.date!)
+        const BGTime = BGDate.getTime()
         // As we're processing each data point, go through the treatment.carbs and see if any of them are older than
         // the current BG data point.  If so, add those carbs to COB.
-        treatment = meals[meals.length - 1]
+        const treatment = meals[meals.length - 1]
         if (treatment) {
-            treatmentDate = new Date(tz(treatment.timestamp))
-            treatmentTime = treatmentDate.getTime()
+            const treatmentDate = new Date(tz(treatment.timestamp))
+            const treatmentTime = treatmentDate.getTime()
             if (treatmentTime < BGTime) {
                 if (treatment.carbs >= 1) {
                     //console.error(treatmentDate, treatmentTime, BGTime, BGTime-treatmentTime);
-                    mealCOB += parseFloat(treatment.carbs)
-                    mealCarbs += parseFloat(treatment.carbs)
-                    var displayCOB = Math.round(mealCOB)
+                    mealCOB += treatment.carbs
+                    mealCarbs += treatment.carbs
+                    const displayCOB = Math.round(mealCOB)
                     //console.error(displayCOB, mealCOB, treatment.carbs);
                     process.stderr.write(`${displayCOB.toString()}g`)
                 }
@@ -257,7 +284,7 @@ function detectSensitivity(inputs) {
             }
             // stop excluding positive deviations as soon as mealCOB=0 if meal has been absorbing for >5h
             if (mealStartCounter > 60 && mealCOB < 0.5) {
-                displayCOB = Math.round(mealCOB)
+                const displayCOB = Math.round(mealCOB)
                 process.stderr.write(`${displayCOB.toString()}g`)
                 absorbing = 0
             }
@@ -274,7 +301,10 @@ function detectSensitivity(inputs) {
             }
             mealStartCounter++
             type = 'csf'
-            glucoseDatum.mealCarbs = mealCarbs
+            glucoseDatum = {
+                ...glucoseDatum,
+                mealCarbs,
+            }
             //if (i == 0) { glucoseDatum.mealAbsorption = "end"; }
             //CSFGlucoseData.push(glucoseDatum);
         } else {
@@ -325,7 +355,7 @@ function detectSensitivity(inputs) {
             avgDeltas.push(avgDelta)
             bgis.push(bgi)
             deviations.push(deviation)
-            deviationSum += parseFloat(deviation)
+            //deviationSum += parseFloat(deviation)
         } else {
             process.stderr.write('x')
         }
@@ -389,7 +419,7 @@ function detectSensitivity(inputs) {
     deviations.sort((a, b) => {
         return a - b
     })
-    for (i = 0.9; i > 0.1; i = i - 0.01) {
+    for (let i = 0.9; i > 0.1; i = i - 0.01) {
         //console.error("p="+i.toFixed(2)+": "+percentile(avgDeltas, i).toFixed(2)+", "+percentile(bgis, i).toFixed(2)+", "+percentile(deviations, i).toFixed(2));
         if (percentile(deviations, i + 0.01) >= 0 && percentile(deviations, i) < 0) {
             //console.error("p="+i.toFixed(2)+": "+percentile(avgDeltas, i).toFixed(2)+", "+percentile(bgis, i).toFixed(2)+", "+percentile(deviations, i).toFixed(2));
@@ -405,11 +435,11 @@ function detectSensitivity(inputs) {
     const pSensitive = percentile(deviations, 0.5)
     const pResistant = percentile(deviations, 0.5)
 
-    const average = deviationSum / deviations.length
+    //const average = deviationSum / deviations.length
     //console.error("Mean deviation: "+average.toFixed(2));
 
     const squareDeviations = deviations.reduce((acc, dev) => {
-        const dev_f = parseFloat(dev)
+        const dev_f = dev
         return acc + dev_f * dev_f
     }, 0)
     const rmsDev = Math.sqrt(squareDeviations / deviations.length)
@@ -453,13 +483,13 @@ function detectSensitivity(inputs) {
 }
 module.exports = detectSensitivity
 
-function tempTargetRunning(temptargets_data, time) {
+function tempTargetRunning(temptargets_data: TempTarget[], time: Date) {
     // sort tempTargets by date so we can process most recent first
     try {
         temptargets_data.sort((a, b) => {
-            return new Date(a.created_at) < new Date(b.created_at)
+            return new Date(a.created_at).getTime() + new Date(b.created_at).getTime()
         })
-    } catch (e) {
+    } catch (_e) {
         //console.error("Could not sort temptargets_data.  Optional feature temporary targets disabled.");
     }
     //console.error(temptargets_data);
@@ -480,4 +510,6 @@ function tempTargetRunning(temptargets_data, time) {
             return tempTarget
         }
     }
+
+    return 0
 }

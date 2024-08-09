@@ -2,6 +2,7 @@ import type { FinalResult } from '../bin/utils'
 import { console_error } from '../bin/utils'
 import getTime from '../medtronic-clock'
 import type { Profile } from '../types/Profile'
+import type { TempTarget } from '../types/TempTarget'
 
 interface BgTarget {
     offset: number
@@ -10,13 +11,6 @@ interface BgTarget {
     min_bg?: number
     max_bg?: number
     temptargetSet?: boolean
-}
-
-interface TempTarget {
-    created_at: string
-    duration: number
-    targetTop: number
-    targetBottom: number
 }
 
 interface LookupInputs {
