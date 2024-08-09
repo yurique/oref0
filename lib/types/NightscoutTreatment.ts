@@ -1,5 +1,6 @@
 import * as t from 'io-ts'
-import { EventType, PumpHistoryEvent } from './PumpHistoryEvent'
+import { EventType } from './EventType'
+import { PumpHistoryEvent } from './PumpHistoryEvent'
 
 export interface NightscoutTreatment {
     eventType: EventType

@@ -1,44 +1,5 @@
 import * as t from 'io-ts'
-
-export const NightscoutEventType = t.keyof({
-    'Temp Basal': null,
-    'Carb Correction': null,
-    'Temporary Target': null,
-    'Insulin Change': null,
-    'Site Change': null,
-    'Pump Battery Change': null,
-    Announcement: null,
-    'Sensor Start': null,
-    'BG Check': null,
-    Exercise: null,
-    'Bolus Wizard': null,
-})
-
-export const EventType = t.union([
-    NightscoutEventType,
-    t.keyof({
-        Bolus: null,
-        SMB: null,
-        'External Insulin': null,
-        'Meal Bolus': null,
-        'Correction Bolus': null,
-        'Snack Bolus': null,
-        BolusWizard: null,
-        TempBasal: null,
-        TempBasalDuration: null,
-        PumpSuspend: null,
-        PumpResume: null,
-        PumpAlarm: null,
-        PumpBattery: null,
-        Rewind: null,
-        Prime: null,
-        JournalEntryMealMarker: null,
-        SuspendBasal: null,
-    }),
-    t.string,
-])
-
-export type EventType = t.TypeOf<typeof EventType>
+import { EventType } from './EventType'
 
 export const TempType = t.keyof({
     absolute: null,
