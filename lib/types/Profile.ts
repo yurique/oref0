@@ -1,25 +1,7 @@
 import * as t from 'io-ts'
-
-export interface BasalSchedule {
-    i?: number
-    start: string
-    minutes: number
-    rate: number
-}
-
-export const BasalSchedule: t.Type<BasalSchedule> = t.intersection(
-    [
-        t.type({
-            start: t.string,
-            minutes: t.number,
-            rate: t.number,
-        }),
-        t.partial({
-            i: t.number,
-        }),
-    ],
-    'BasalSchedule'
-)
+import { BasalSchedule } from './BasalSchedule'
+import { GlucoseUnit } from './GlucoseUnit'
+import { InsulineCurve } from './InsulineCurve'
 
 /**
  * {
@@ -183,16 +165,6 @@ export const CarbRatios: t.Type<CarbRatios> = t.type(
     'CarbRatios'
 )
 
-export type InsulineCurve = 'bilinear' | 'rapid-acting' | 'ultra-rapid'
-export const InsulineCurve: t.Type<InsulineCurve> = t.keyof(
-    {
-        bilinear: null,
-        'rapid-acting': null,
-        'ultra-rapid': null,
-    },
-    'InsulineCurve'
-)
-
 export interface ISFSensitivity {
     i?: number
     offset: number
@@ -237,21 +209,12 @@ export const ISFProfile: t.Type<ISFProfile> = t.intersection(
     'ISFProfile'
 )
 
-export type GlucoseUnits = 'mg/dL' | 'mmol/L'
-export const GlucoseUnits = t.keyof(
-    {
-        'mg/dL': null,
-        'mmol/L': null,
-    },
-    'GlucoseUnits'
-)
-
 export interface Profile {
     basalprofile: Array<BasalSchedule>
     sens: number
     carb_ratio: number
     min_5m_carbimpact: number
-    out_units?: GlucoseUnits
+    out_units?: GlucoseUnit
     max_daily_safety_multiplier?: number
     current_basal_safety_multiplier?: number
     model?: string
@@ -301,7 +264,7 @@ export interface Profile {
     SMBInterval?: number
 }
 
-export const Profile: t.Type<Profile> = t.intersection(
+export const Profile: t.Type<Profile, unknown> = t.intersection(
     [
         t.type({
             basalprofile: t.array(BasalSchedule),
@@ -310,10 +273,7 @@ export const Profile: t.Type<Profile> = t.intersection(
             min_5m_carbimpact: t.number,
         }),
         t.partial({
-            out_units: t.keyof({
-                'mg/dL': null,
-                'mmol/L': null,
-            }),
+            out_units: GlucoseUnit,
             max_daily_safety_multiplier: t.number,
             current_basal_safety_multiplier: t.number,
             model: t.string,

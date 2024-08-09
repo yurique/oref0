@@ -1,6 +1,6 @@
 import type { Autosens } from '../types/Autosens'
+import { InsulineCurve } from '../types/InsulineCurve'
 import type { Profile } from '../types/Profile'
-import { InsulineCurve } from '../types/Profile'
 import type { InsulinTreatment } from './InsulinTreatment'
 import { isBolusTreatment } from './InsulinTreatment'
 import calculate from './calculate'
@@ -8,7 +8,7 @@ import calculate from './calculate'
 interface Options {
     treatments: InsulinTreatment[]
     profile: Profile
-    autosens?: Autosens
+    autosens?: Autosens | undefined
 }
 
 export default function iobTotal(opts: Options, time: Date) {

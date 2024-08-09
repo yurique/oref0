@@ -47,8 +47,8 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
         if (current.carbs && current.created_at) {
             mealInputs.push(
                 createMeal(current.created_at, {
-                    carbs: current.carbs !== null ? current.carbs : undefined,
-                    nsCarbs: current.carbs !== null ? current.carbs : undefined,
+                    carbs: current.carbs,
+                    nsCarbs: current.carbs,
                 })
             )
         }
@@ -56,7 +56,7 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
 
     for (let i = 0; i < pumpHistory.length; i++) {
         const current = pumpHistory[i]
-        if (PumpHistoryEvent.is(current) && current._type === 'Bolus' && current.timestamp) {
+        if (PumpHistoryEvent.is(current) && current._type === 'Bolus' && current.timestamp && current.amount) {
             //console.log(pumpHistory[i]);
             mealInputs.push(createMeal(current.timestamp, { bolus: current.amount }))
         } else if (PumpHistoryEvent.is(current) && current._type === 'BolusWizard' && current.timestamp) {
@@ -70,7 +70,8 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
                 current.eventType === 'Correction Bolus' ||
                 current.eventType === 'Snack Bolus' ||
                 current.eventType === 'Bolus Wizard' ||
-                current.eventType === 'Carb Correction')
+                current.eventType === 'Carb Correction') &&
+            current.carbs
         ) {
             //imports carbs entered through Nightscout Care Portal
             //"Bolus Wizard" refers to the Nightscout Bolus Wizard, not the Medtronic Bolus Wizard
@@ -79,24 +80,24 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
             // to prevent duped carb entries from multiple sources
             mealInputs.push(
                 createMeal(current.created_at, {
-                    carbs: current.carbs !== null ? current.carbs : undefined,
-                    nsCarbs: current.carbs !== null ? current.carbs : undefined,
+                    carbs: current.carbs,
+                    nsCarbs: current.carbs,
                 })
             )
         } else if (NightscoutTreatment.is(current) && current.enteredBy === 'xdrip' && current.created_at) {
             mealInputs.push(
                 createMeal(current.created_at, {
-                    carbs: current.carbs !== null ? current.carbs : undefined,
-                    nsCarbs: current.carbs !== null ? current.carbs : undefined,
-                    bolus: current.insulin !== null ? current.insulin : undefined,
+                    carbs: current.carbs || 0,
+                    nsCarbs: current.carbs || 0,
+                    bolus: current.insulin || 0,
                 })
             )
         } else if (NightscoutTreatment.is(current) && current.carbs && current.carbs > 0 && current.created_at) {
             mealInputs.push(
                 createMeal(current.created_at, {
-                    carbs: current.carbs !== null ? current.carbs : undefined,
-                    nsCarbs: current.carbs !== null ? current.carbs : undefined,
-                    bolus: current.insulin !== null ? current.insulin : undefined,
+                    carbs: current.carbs || 0,
+                    nsCarbs: current.carbs || 0,
+                    bolus: current.insulin || 0,
                 })
             )
         } else if (
@@ -118,8 +119,8 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
         const current = bolusWizardInputs[i]
         //console.log(bolusWizardInputs[i]);
         const temp = createMeal(current.timestamp, {
-            carbs: current.carb_input,
-            bwCarbs: current.carb_input,
+            carbs: current.carb_input || 0,
+            bwCarbs: current.carb_input || 0,
         })
 
         // don't enter the treatment if there's another treatment with the same exact timestamp

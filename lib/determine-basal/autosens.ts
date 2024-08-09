@@ -6,9 +6,10 @@ import find_meals from '../meal/history'
 import percentile from '../percentile'
 import { basalLookup } from '../profile/basal'
 import { isfLookup } from '../profile/isf'
+import type { BasalSchedule } from '../types/BasalSchedule'
 import type { GlucoseEntry } from '../types/GlucoseEntry'
 import { getGlucoseEntryDate } from '../types/GlucoseEntry'
-import type { BasalSchedule, ISFSensitivity } from '../types/Profile'
+import type { ISFSensitivity } from '../types/Profile'
 import type { TempTarget } from '../types/TempTarget'
 
 interface Inputs {

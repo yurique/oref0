@@ -3,8 +3,8 @@ import type { Input as IOBInput } from '../iob/history'
 import find_insulin from '../iob/history'
 import * as basal from '../profile/basal'
 import { isfLookup } from '../profile/isf'
+import type { BasalSchedule } from '../types/BasalSchedule'
 import type { GlucoseEntry } from '../types/GlucoseEntry'
-import type { BasalSchedule } from '../types/Profile'
 
 export interface DetectCOBInput {
     glucose_data: GlucoseEntry[]
@@ -158,7 +158,11 @@ export default function detectCarbAbsorption(inputs: DetectCOBInput) {
         }
 
         iob_inputs.clock = bgTime.toISOString()
-        iob_inputs.profile.current_basal = basal.basalLookup(basalprofile || [], bgTime)
+        const current_basal = basal.basalLookup(basalprofile || [], bgTime)
+        if (!current_basal) {
+            continue
+        }
+        iob_inputs.profile.current_basal = current_basal
         //console.log(JSON.stringify(iob_inputs.profile));
         //console.error("Before: ", new Date().getTime());
         const iob = get_iob(iob_inputs, true, treatments)[0]

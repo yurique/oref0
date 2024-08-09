@@ -1,9 +1,10 @@
 import { tz } from '../date'
 import type { DetectCOBInput } from '../determine-basal/cob'
 import detectCarbAbsorption from '../determine-basal/cob'
+import type { BasalSchedule } from '../types/BasalSchedule'
 import type { GlucoseEntry } from '../types/GlucoseEntry'
 import type { NightscoutTreatment } from '../types/NightscoutTreatment'
-import type { BasalSchedule, Profile } from '../types/Profile'
+import type { Profile } from '../types/Profile'
 import type { PumpHistoryEvent } from '../types/PumpHistoryEvent'
 import type { MealTreatment } from './MealTreatment'
 
@@ -56,7 +57,7 @@ export default function recentCarbs(opts: Options, time: Date): Partial<RecentCa
     const COB_inputs: DetectCOBInput = {
         glucose_data: glucose_data || [],
         iob_inputs: iob_inputs,
-        basalprofile: opts.basalprofile,
+        basalprofile: opts.basalprofile || [],
         mealTime: mealCarbTime,
     }
     let mealCOB = 0

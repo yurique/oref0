@@ -24,8 +24,9 @@ interface IOBItem extends IOB {
     }
 }
 
-export default function generate(inputs: Input, currentIOBOnly: boolean = false, treatments?: InsulinTreatment[]) {
+export default function generate(inputs: Input, currentIOBOnly: boolean = false, inputTreatments?: InsulinTreatment[]) {
     let treatmentsWithZeroTemp: InsulinTreatment[] = []
+    let treatments = inputTreatments
     if (!treatments) {
         treatments = find_insulin(inputs)
         // calculate IOB based on continuous future zero temping as well

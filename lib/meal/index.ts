@@ -1,7 +1,8 @@
 import { tz } from '../date'
+import type { BasalSchedule } from '../types/BasalSchedule'
 import type { GlucoseEntry } from '../types/GlucoseEntry'
 import type { NightscoutTreatment } from '../types/NightscoutTreatment'
-import type { BasalSchedule, Profile } from '../types/Profile'
+import type { Profile } from '../types/Profile'
 import type { PumpHistoryEvent } from '../types/PumpHistoryEvent'
 import type { CarbEntry } from './history'
 import find_meals from './history'
@@ -23,8 +24,8 @@ export default function generate(inputs: Input) {
         treatments: treatments,
         profile: inputs.profile,
         pumphistory: inputs.history,
-        glucose: inputs.glucose,
-        basalprofile: inputs.basalprofile,
+        basalprofile: inputs.basalprofile || [],
+        glucose: inputs.glucose || [],
         clock: inputs.clock,
     }
 

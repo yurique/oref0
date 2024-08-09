@@ -1,4 +1,4 @@
-import type { BasalSchedule } from '../types/Profile'
+import type { BasalSchedule } from '../types/BasalSchedule'
 
 /* Return basal rate(U / hr) at the provided timeOfDay */
 export function basalLookup(schedules: BasalSchedule[], now?: Date) {
@@ -23,8 +23,8 @@ export function basalLookup(schedules: BasalSchedule[], now?: Date) {
     return Math.round(basalRate * 1000) / 1000
 }
 
-export function maxDailyBasal(inputs: { basals: { rate: string | number }[] }): number {
-    const max = inputs.basals.reduce((b, a) => (Number(a.rate) > b ? Number(a.rate) : b), 0)
+export function maxDailyBasal(inputs: { basals: { rate: number }[] }): number {
+    const max = inputs.basals.reduce((b, a) => (a.rate > b ? a.rate : b), 0)
     return (Number(max) * 1000) / 1000
 }
 
