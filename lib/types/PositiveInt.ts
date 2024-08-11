@@ -1,9 +1,9 @@
-import * as t from 'io-ts'
-import type { PositiveNumberBrand } from './PositiveNumber'
+import { Schema } from '@effect/schema'
+import { PositiveNumber } from './PositiveNumber'
 
-export interface PositiveIntBrand extends PositiveNumberBrand {
-    readonly PositiveInt: unique symbol
-}
-
-export type PositiveInt = t.Branded<t.Int, PositiveIntBrand>
-export const PositiveInt = t.brand(t.Int, (n): n is PositiveInt => n >= 0, 'PositiveInt')
+export const PositiveIntBrand = Symbol.for('PositiveInt')
+export const PositiveInt = PositiveNumber.pipe(Schema.brand(PositiveIntBrand)).annotations({
+    identifier: 'PositiveInt',
+    title: 'PositiveInt',
+})
+export type PositiveInt = typeof PositiveInt.Type

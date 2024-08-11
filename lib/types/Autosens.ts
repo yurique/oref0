@@ -1,13 +1,9 @@
-import * as t from 'io-ts'
+import { Schema } from '@effect/schema'
 
-export const Autosens = t.intersection([
-    t.type({
-        timestamp: t.string,
-        ratio: t.number,
-    }),
-    t.partial({
-        newisf: t.number,
-    }),
-])
+export const Autosens = Schema.Struct({
+    timestamp: Schema.String,
+    ratio: Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)),
+    newisf: Schema.optional(Schema.Number),
+})
 
-export type Autosens = t.TypeOf<typeof Autosens>
+export type Autosens = typeof Autosens.Type

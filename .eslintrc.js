@@ -76,6 +76,7 @@ module.exports = {
         'node/no-missing-import': 'off',
         'import/no-unresolved': 'error',
 
+        '@typescript-eslint/no-empty-object-type': 'off',
         '@typescript-eslint/dot-notation': 'error',
         '@typescript-eslint/no-namespace': 'warn',
         '@typescript-eslint/consistent-type-definitions': 'error',

@@ -1,32 +1,22 @@
 import type { FinalResult } from '../bin/utils'
 import { console_error } from '../bin/utils'
 import getTime from '../medtronic-clock'
-import type { Profile } from '../types/Profile'
-import type { TempTarget } from '../types/TempTarget'
+import type { Preferences } from '../types/Preferences'
 
 interface BgTarget {
     offset: number
     low: number
     high: number
-    min_bg?: number
-    max_bg?: number
     temptargetSet?: boolean
 }
 
-interface LookupInputs {
-    targets: {
-        targets: BgTarget[]
-    }
-    temptargets: TempTarget[]
+export function bgTargetsLookup(final_result: FinalResult, inputs: Preferences) {
+    return bound_target_range(lookup(final_result, inputs))
 }
 
-export function bgTargetsLookup(final_result: FinalResult, inputs: LookupInputs, profile: Profile) {
-    return bound_target_range(lookup(final_result, inputs, profile))
-}
-
-export function lookup(final_result: FinalResult, inputs: LookupInputs, profile: Profile) {
-    const bgtargets_data = inputs.targets
-    let temptargets_data = inputs.temptargets
+export function lookup(final_result: FinalResult, preferences: Preferences): BgTarget {
+    const bgtargets_data = preferences.targets
+    let temptargets_data = preferences.temptargets
     const now = new Date()
 
     //bgtargets_data.targets.sort(function (a, b) { return a.offset > b.offset });
@@ -43,35 +33,33 @@ export function lookup(final_result: FinalResult, inputs: LookupInputs, profile:
         }
     }
 
-    if (profile.target_bg) {
-        bgTargets.low = profile.target_bg
+    const target_bg = preferences.target_bg || bgTargets.low
+
+    let tempTargets: BgTarget = {
+        ...bgTargets,
+        low: target_bg,
+        high: target_bg,
     }
+    bgTargets = tempTargets
 
-    bgTargets.high = bgTargets.low
-
-    let tempTargets = bgTargets
-
-    if (!Array.isArray(temptargets_data)) {
+    if (temptargets_data.length === 0) {
         console_error(final_result, 'No temptargets found.')
         return bgTargets
-    } else {
-        // sort tempTargets by date so we can process most recent first
-        temptargets_data = [...temptargets_data].sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
     }
 
-    //console.error(temptargets_data);
-    //console.error(now);
+    // sort tempTargets by date so we can process most recent first
+    temptargets_data = [...temptargets_data].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+
     for (let i = 0; i < temptargets_data.length; i++) {
         const start = new Date(temptargets_data[i].created_at)
-        //console.error(start);
         const expires = new Date(start.getTime() + temptargets_data[i].duration * 60 * 1000)
-        //console.error(expires);
         if (now >= start && temptargets_data[i].duration === 0) {
             // cancel temp targets
-            //console.error(temptargets_data[i]);
-            tempTargets = bgTargets
+            tempTargets = {
+                ...bgTargets,
+            }
             break
         } else if (!temptargets_data[i].targetBottom || !temptargets_data[i].targetTop) {
             console_error(
@@ -80,7 +68,12 @@ export function lookup(final_result: FinalResult, inputs: LookupInputs, profile:
             )
             break
         } else if (now >= start && now < expires) {
-            //console.error(temptargets_data[i]);
+            tempTargets = {
+                ...tempTargets,
+                high: temptargets_data[i].targetTop,
+                low: temptargets_data[i].targetBottom,
+                temptargetSet: true,
+            }
             tempTargets.high = temptargets_data[i].targetTop
             tempTargets.low = temptargets_data[i].targetBottom
             tempTargets.temptargetSet = true
@@ -88,7 +81,6 @@ export function lookup(final_result: FinalResult, inputs: LookupInputs, profile:
         }
     }
     bgTargets = tempTargets
-    //console.error(bgTargets);
 
     return bgTargets
 }

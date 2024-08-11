@@ -1,19 +1,21 @@
-import type { ISFProfile, ISFSensitivity } from '../types/Profile'
+import { sort } from 'effect/Array'
+import * as ISFSensitivity from '../types/ISFSensitivity'
+import type { ISFProfile } from '../types/Profile'
 
 export function isfLookup(
     isf_profile: ISFProfile,
     timestamp: Date | undefined,
-    lastResult: ISFSensitivity | null
-): [number, ISFSensitivity | null] {
+    lastResult: ISFSensitivity.ISFSensitivity | null
+): [number, ISFSensitivity.ISFSensitivity | null] {
     const nowDate = timestamp || new Date()
 
     const nowMinutes = nowDate.getHours() * 60 + nowDate.getMinutes()
 
-    if (lastResult && nowMinutes >= lastResult.offset && nowMinutes < lastResult.endOffset) {
+    if (lastResult && nowMinutes >= lastResult.offset && nowMinutes < (lastResult.endOffset || 0)) {
         return [lastResult.sensitivity, lastResult]
     }
 
-    const isf_data = isf_profile.sensitivities.sort((a, b) => a.offset - b.offset)
+    const isf_data = sort(ISFSensitivity.Order)(isf_profile.sensitivities)
 
     let isfSchedule = isf_data[isf_data.length - 1]
 

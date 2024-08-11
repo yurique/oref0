@@ -10,7 +10,7 @@ const round_basal = (basal: number, profile?: Profile) => {
     let lowest_rate_scale = 20
 
     // Make sure optional model has been set
-    if (profile?.model?.endsWith('54') || profile?.model?.endsWith('23')) {
+    if (profile?.model?.toString().endsWith('54') || profile?.model?.toString().endsWith('23')) {
         lowest_rate_scale = 40
     }
 

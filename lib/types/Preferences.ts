@@ -1,36 +1,208 @@
-import type { NonEmptyArray } from 'fp-ts/NonEmptyArray'
-import * as t from 'io-ts'
-import { fromNullable } from 'io-ts-types/fromNullable'
-import { nonEmptyArray } from 'io-ts-types/nonEmptyArray'
+import { Schema } from '@effect/schema'
+
+import { constant } from 'effect/Function'
 import { BasalSchedule } from './BasalSchedule'
+import { CarbRatios } from './CarbRatios'
 import { GlucoseUnit } from './GlucoseUnit'
 import { InsulineCurve } from './InsulineCurve'
-import { PositiveInt } from './PositiveInt'
-import { PositiveNumber } from './PositiveNumber'
+import { ISFProfile } from './Profile'
+import { ScheduleStart } from './ScheduleStart'
+import { TempTarget } from './TempTarget'
 
-interface PumpSettings {
-    insulin_action_curve?: PositiveNumber
-}
-
-const PumpSettings = t.partial({
-    insulin_action_curve: t.refinement(PositiveNumber, a => a > 1, 'PositiveNumber(> 1)'),
+const PumpSettings = Schema.Struct({
+    // maxBolus: Schema.Number,
+    maxBasal: Schema.optional(Schema.Number),
+    insulin_action_curve: Schema.optionalWith(Schema.Number.pipe(Schema.greaterThan(1)), {
+        default: constant(2),
+    }),
+}).annotations({
+    identifier: 'PumpSettings',
+    title: 'Pump Settings',
 })
 
-interface Targets {
-    user_preferred_units: GlucoseUnit
-}
+type PumpSettings = typeof PumpSettings.Type
 
-const Targets = t.type({
-    user_preferred_units: GlucoseUnit,
+const BGTarget = Schema.Struct({
+    offset: Schema.Number,
+    start: Schema.optionalWith(ScheduleStart, { exact: true }),
+    low: Schema.Number,
+    high: Schema.Number,
 })
 
-export interface Preferences {
-    [k: string]: unknown
-    max_iob: PositiveInt
-    max_daily_safety_multiplier: PositiveNumber
-    current_basal_safety_multiplier: PositiveNumber
-    autosens_max: PositiveNumber
-    autosens_min: PositiveNumber
+export type BgTarget = typeof BGTarget.Type
+
+const Targets = Schema.Struct({
+    user_preferred_units: Schema.optional(GlucoseUnit),
+    targets: Schema.NonEmptyArray(BGTarget),
+})
+
+type Targets = typeof Targets.Type
+
+const Basals = Schema.NonEmptyArray(BasalSchedule)
+type Basals = typeof Basals.Type
+
+export const Preferences = Schema.Struct({
+    max_iob: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 0,
+    }),
+    max_daily_safety_multiplier: Schema.optionalWith(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: constant(3),
+    }),
+    current_basal_safety_multiplier: Schema.optionalWith(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: constant(4),
+    }),
+    autosens_max: Schema.optionalWith(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: constant(1.2),
+    }),
+    autosens_min: Schema.optionalWith(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: constant(0.7),
+    }),
+    rewind_resets_autosens: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => true }),
+    high_temptarget_raises_sensitivity: Schema.optionalWith(Schema.Boolean, {
+        nullable: true,
+        default: () => false,
+    }),
+    low_temptarget_lowers_sensitivity: Schema.optionalWith(Schema.Boolean, {
+        nullable: true,
+        default: () => false,
+    }),
+    sensitivity_raises_target: Schema.optionalWith(Schema.Boolean, {
+        nullable: true,
+        default: () => true,
+    }),
+    resistance_lowers_target: Schema.optionalWith(Schema.Boolean, {
+        nullable: true,
+        default: () => false,
+    }),
+    exercise_mode: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    half_basal_exercise_target: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 160,
+    }),
+    maxCOB: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 120,
+    }),
+    skip_neutral_temps: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    unsuspend_if_no_temp: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    bolussnooze_dia_divisor: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 2,
+    }),
+    min_5m_carbimpact: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 8,
+    }),
+    autotune_isf_adjustmentFraction: Schema.optionalWith(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: constant(1.0),
+    }),
+    remainingCarbsFraction: Schema.optionalWith(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: constant(1.0),
+    }),
+    remainingCarbsCap: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 90,
+    }),
+    enableUAM: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => true }),
+    A52_risk_enable: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    enableSMB_with_COB: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    enableSMB_with_temptarget: Schema.optionalWith(Schema.Boolean, {
+        nullable: true,
+        default: () => false,
+    }),
+    enableSMB_always: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    enableSMB_after_carbs: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    enableSMB_high_bg: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    enableSMB_high_bg_target: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 110,
+    }),
+    allowSMB_with_high_temptarget: Schema.optionalWith(Schema.Boolean, {
+        nullable: true,
+        default: () => false,
+    }),
+    maxSMBBasalMinutes: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 30,
+    }),
+    maxUAMSMBBasalMinutes: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 30,
+    }),
+    SMBInterval: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 3,
+    }),
+    bolus_increment: Schema.optionalWith(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: constant(0.1),
+    }),
+    maxDelta_bg_threshold: Schema.optionalWith(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: constant(0.2),
+    }),
+    curve: Schema.optionalWith(InsulineCurve, { nullable: true, default: () => 'rapid-acting' as const }),
+    useCustomPeakTime: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    insulinPeakTime: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 75,
+    }),
+    carbsReqThreshold: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 1,
+    }),
+    offline_hotspot: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    noisyCGMTargetMultiplier: Schema.optionalWith(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: constant(1.3),
+    }),
+    suspend_zeros_iob: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => true }),
+    enableEnliteBgproxy: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    calc_glucose_noise: Schema.optionalWith(Schema.Boolean, { nullable: true, default: () => false }),
+    target_bg: Schema.optionalWith(
+        Schema.Union(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), Schema.Literal(false)),
+        {
+            nullable: true,
+            default: () => false as const,
+        }
+    ),
+    edison_battery_shutdown_voltage: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 3050,
+    }),
+    pi_battery_shutdown_percent: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
+        nullable: true,
+        default: () => 2,
+    }),
+    isf: ISFProfile,
+    // no defaults
+    basals: Basals,
+    settings: PumpSettings,
+    targets: Targets,
+    temptargets: Schema.Array(TempTarget),
+    // @todo: can we make it just a string?
+    model: Schema.optionalWith(Schema.Union(Schema.NonEmptyString, Schema.Int), { nullable: true }),
+    carbratio: Schema.optionalWith(CarbRatios, { strict: true, nullable: true }),
+}).annotations({
+    identifier: 'Preferences',
+    title: 'Preferences',
+})
+
+//export interface Preferences extends Schema.Schema.Type<typeof Preferences> {}
+
+export interface Preferences extends Schema.Schema.Type<typeof Preferences> {
+    max_iob: number
+    max_daily_safety_multiplier: number
+    current_basal_safety_multiplier: number
+    autosens_max: number
+    autosens_min: number
     rewind_resets_autosens: boolean
     /** raise sensitivity for temptargets >= 101.  synonym for exercise_mode */
     high_temptarget_raises_sensitivity: boolean
@@ -42,7 +214,7 @@ export interface Preferences {
     resistance_lowers_target: boolean
     /** when true, > 100 mg/dL high temp target adjusts sensitivityRatio for exercise_mode. This majorly changes the behavior of high temp targets from before. synonmym for high_temptarget_raises_sensitivity */
     exercise_mode: boolean
-    half_basal_exercise_target: PositiveInt
+    half_basal_exercise_target: number
     /**
      * Max carbs absorbed in 4 hours.
      *
@@ -51,21 +223,21 @@ export interface Preferences {
      * If someone enters more carbs or stacks more; OpenAPS will just truncate dosing based on 120.
      * Essentially, this just limits AMA/SMB as a safety cap against excessive COB entry.
      */
-    maxCOB: PositiveInt
+    maxCOB: number
     /** if true, don't set neutral temps */
     skip_neutral_temps: boolean
     /** if true, pump will un-suspend after a zero temp finishes */
     unsuspend_if_no_temp: boolean
     /** bolus snooze decays after 1/2 of DIA */
-    bolussnooze_dia_divisor: PositiveInt
+    bolussnooze_dia_divisor: number
     /** mg/dL per 5m (8 mg/dL/5m corresponds to 24g/hr at a CSF of 4 mg/dL/g (x/5*60/4)) */
-    min_5m_carbimpact: PositiveInt
+    min_5m_carbimpact: number
     /** keep autotune ISF closer to pump ISF via a weighted average of fullNewISF and pumpISF.  1.0 allows full adjustment, 0 is no adjustment from pump ISF. */
-    autotune_isf_adjustmentFraction: PositiveNumber
+    autotune_isf_adjustmentFraction: number
     /** fraction of carbs we'll assume will absorb over 4h if we don't yet see carb absorption */
-    remainingCarbsFraction: PositiveNumber
+    remainingCarbsFraction: number
     /** max carbs we'll assume will absorb over 4h if we don't yet see carb absorption */
-    remainingCarbsCap: PositiveInt
+    remainingCarbsCap: number
     /** Enable detection of unannounced meal carb absorption */
     enableUAM: boolean
     A52_risk_enable: boolean
@@ -97,19 +269,19 @@ export interface Preferences {
     /** Enable SMBs when a high BG is detected, based on the high BG target (adjusted or profile) */
     enableSMB_high_bg: boolean
     /** Set the value enableSMB_high_bg will compare against to enable SMB. If BG > than this value, SMBs should enable. */
-    enableSMB_high_bg_target: PositiveInt
+    enableSMB_high_bg_target: number
     /** Allow supermicrobolus (if otherwise enabled) even with high temp targets */
     allowSMB_with_high_temptarget: boolean
     /** maximum minutes of basal that can be delivered as a single SMB with uncovered COB */
-    maxSMBBasalMinutes: PositiveInt
+    maxSMBBasalMinutes: number
     /** maximum minutes of basal that can be delivered as a single SMB when IOB exceeds COB */
-    maxUAMSMBBasalMinutes: PositiveInt
+    maxUAMSMBBasalMinutes: number
     /** minimum interval between SMBs, in minutes. */
-    SMBInterval: PositiveInt
+    SMBInterval: number
     /** minimum bolus that can be delivered as an SMB */
-    bolus_increment: PositiveNumber
+    bolus_increment: number
     /** maximum change in bg to use SMB, above that will disable SMB */
-    maxDelta_bg_threshold: PositiveNumber
+    maxDelta_bg_threshold: number
     /** Insulin curve. */
     curve: InsulineCurve
     /** allows changing insulinPeakTime */
@@ -118,13 +290,13 @@ export interface Preferences {
      * Number of minutes after a bolus activity peaks.
      * Defaults to 55m for Fiasp if useCustomPeakTime: boolean
      */
-    insulinPeakTime: PositiveInt
+    insulinPeakTime: number
     /** grams of carbsReq to trigger a pushover */
-    carbsReqThreshold: PositiveInt
+    carbsReqThreshold: number
     /** enabled an offline-only local wifi hotspot if no Internet available */
     offline_hotspot: boolean
     /** increase target by this amount when looping off raw/noisy CGM data */
-    noisyCGMTargetMultiplier: PositiveNumber
+    noisyCGMTargetMultiplier: number
     /** recognize pump suspends as non insulin delivery events */
     suspend_zeros_iob: boolean
     /**
@@ -137,80 +309,8 @@ export interface Preferences {
     enableEnliteBgproxy: boolean
     calc_glucose_noise: boolean
     /** set to an integer value in mg/dL to override pump min_bg */
-    target_bg: boolean
-    edison_battery_shutdown_voltage: PositiveInt
-    pi_battery_shutdown_percent: PositiveInt
-    // no defaults
-    model?: string
-    settings: PumpSettings
-    basals: NonEmptyArray<BasalSchedule>
-    targets: Targets
+    target_bg: number | false
 }
-
-/**
- * @todo: should we parse numbers from strings?
- */
-export const Preferences: t.Type<Preferences, unknown> = t.intersection(
-    [
-        t.record(t.string, t.unknown),
-        t.type({
-            max_iob: fromNullable(PositiveInt, 0 as PositiveInt),
-            max_daily_safety_multiplier: fromNullable(PositiveNumber, 3 as PositiveNumber),
-            current_basal_safety_multiplier: fromNullable(PositiveNumber, 3 as PositiveNumber),
-            autosens_max: fromNullable(PositiveNumber, 1.2 as PositiveNumber),
-            autosens_min: fromNullable(PositiveNumber, 0.7 as PositiveNumber),
-            rewind_resets_autosens: fromNullable(t.boolean, true),
-            high_temptarget_raises_sensitivity: fromNullable(t.boolean, false),
-            low_temptarget_lowers_sensitivity: fromNullable(t.boolean, false),
-            sensitivity_raises_target: fromNullable(t.boolean, true),
-            resistance_lowers_target: fromNullable(t.boolean, false),
-            exercise_mode: fromNullable(t.boolean, false),
-            half_basal_exercise_target: fromNullable(PositiveInt, 160 as PositiveInt),
-            maxCOB: fromNullable(PositiveInt, 120 as PositiveInt),
-            skip_neutral_temps: fromNullable(t.boolean, false),
-            unsuspend_if_no_temp: fromNullable(t.boolean, false),
-            bolussnooze_dia_divisor: fromNullable(PositiveInt, 2 as PositiveInt),
-            min_5m_carbimpact: fromNullable(PositiveInt, 8 as PositiveInt),
-            autotune_isf_adjustmentFraction: fromNullable(PositiveNumber, 1.0 as PositiveNumber),
-            remainingCarbsFraction: fromNullable(PositiveNumber, 1.0 as PositiveNumber),
-            remainingCarbsCap: fromNullable(PositiveInt, 90 as PositiveInt),
-            enableUAM: fromNullable(t.boolean, true),
-            A52_risk_enable: fromNullable(t.boolean, false),
-            enableSMB_with_COB: fromNullable(t.boolean, false),
-            enableSMB_with_temptarget: fromNullable(t.boolean, false),
-            enableSMB_always: fromNullable(t.boolean, false),
-            enableSMB_after_carbs: fromNullable(t.boolean, false),
-            enableSMB_high_bg: fromNullable(t.boolean, false),
-            enableSMB_high_bg_target: fromNullable(PositiveInt, 110 as PositiveInt),
-            allowSMB_with_high_temptarget: fromNullable(t.boolean, false),
-            maxSMBBasalMinutes: fromNullable(PositiveInt, 30 as PositiveInt),
-            maxUAMSMBBasalMinutes: fromNullable(PositiveInt, 30 as PositiveInt),
-            SMBInterval: fromNullable(PositiveInt, 3 as PositiveInt),
-            bolus_increment: fromNullable(PositiveNumber, 0.1 as PositiveNumber),
-            maxDelta_bg_threshold: fromNullable(PositiveNumber, 0.2 as PositiveNumber),
-            curve: fromNullable(InsulineCurve, 'rapid-acting'),
-            useCustomPeakTime: fromNullable(t.boolean, false),
-            insulinPeakTime: fromNullable(PositiveInt, 75 as PositiveInt),
-            carbsReqThreshold: fromNullable(PositiveInt, 1 as PositiveInt),
-            offline_hotspot: fromNullable(t.boolean, false),
-            noisyCGMTargetMultiplier: fromNullable(PositiveNumber, 1.3 as PositiveNumber),
-            suspend_zeros_iob: fromNullable(t.boolean, true),
-            enableEnliteBgproxy: fromNullable(t.boolean, false),
-            calc_glucose_noise: fromNullable(t.boolean, false),
-            target_bg: fromNullable(t.boolean, false),
-            edison_battery_shutdown_voltage: fromNullable(PositiveInt, 3050 as PositiveInt),
-            pi_battery_shutdown_percent: fromNullable(PositiveInt, 2 as PositiveInt),
-            // no defaults
-            basals: nonEmptyArray(BasalSchedule),
-            settings: PumpSettings,
-            targets: Targets,
-        }),
-        t.partial({
-            model: t.string,
-        }),
-    ],
-    'Preferences'
-)
 
 /**
  * {

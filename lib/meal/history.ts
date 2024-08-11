@@ -1,10 +1,12 @@
 //import { PumpEntry, PumpEntryBolusWizard } from "../types/PumpEntry.ts.bak";
 
-import { uniq } from 'fp-ts/Array'
-import { struct, eqStrict, fromEquals } from 'fp-ts/Eq'
+import { Schema } from '@effect/schema'
+import { dedupeWith, sort } from 'effect/Array'
+import { struct, strict } from 'effect/Equivalence'
 import { NightscoutTreatment } from '../types/NightscoutTreatment'
 import { PumpHistoryEvent } from '../types/PumpHistoryEvent'
 import type { MealTreatment } from './MealTreatment'
+import { Order } from './MealTreatment'
 
 export interface CarbEntry {
     carbs?: number
@@ -38,9 +40,7 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
     const mealInputs: TempMealTreatment[] = []
     const bolusWizardInputs: PumpHistoryEvent[] = []
 
-    const timestampEq = fromEquals(
-        (a: string, b: string) => Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 2000
-    )
+    const timestampEq = (a: string, b: string) => Math.abs(new Date(a).getTime() - new Date(b).getTime()) < 2000
 
     for (let i = 0; i < carbHistory.length; i++) {
         const current = carbHistory[i]
@@ -56,15 +56,15 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
 
     for (let i = 0; i < pumpHistory.length; i++) {
         const current = pumpHistory[i]
-        if (PumpHistoryEvent.is(current) && current._type === 'Bolus' && current.timestamp && current.amount) {
+        if (Schema.is(PumpHistoryEvent)(current) && current._type === 'Bolus' && current.timestamp && current.amount) {
             //console.log(pumpHistory[i]);
             mealInputs.push(createMeal(current.timestamp, { bolus: current.amount }))
-        } else if (PumpHistoryEvent.is(current) && current._type === 'BolusWizard' && current.timestamp) {
+        } else if (Schema.is(PumpHistoryEvent)(current) && current._type === 'BolusWizard' && current.timestamp) {
             // Delay process the BolusWizard entries to make sure we've seen all possible that correspond to the bolus wizard.
             // More specifically, we need to make sure we process the corresponding bolus entry first.
             bolusWizardInputs.push(current)
         } else if (
-            NightscoutTreatment.is(current) &&
+            Schema.is(NightscoutTreatment)(current) &&
             current.created_at &&
             (current.eventType === 'Meal Bolus' ||
                 current.eventType === 'Correction Bolus' ||
@@ -84,15 +84,7 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
                     nsCarbs: current.carbs,
                 })
             )
-        } else if (NightscoutTreatment.is(current) && current.enteredBy === 'xdrip' && current.created_at) {
-            mealInputs.push(
-                createMeal(current.created_at, {
-                    carbs: current.carbs || 0,
-                    nsCarbs: current.carbs || 0,
-                    bolus: current.insulin || 0,
-                })
-            )
-        } else if (NightscoutTreatment.is(current) && current.carbs && current.carbs > 0 && current.created_at) {
+        } else if (Schema.is(NightscoutTreatment)(current) && current.enteredBy === 'xdrip' && current.created_at) {
             mealInputs.push(
                 createMeal(current.created_at, {
                     carbs: current.carbs || 0,
@@ -101,7 +93,20 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
                 })
             )
         } else if (
-            PumpHistoryEvent.is(current) &&
+            Schema.is(NightscoutTreatment)(current) &&
+            current.carbs &&
+            current.carbs > 0 &&
+            current.created_at
+        ) {
+            mealInputs.push(
+                createMeal(current.created_at, {
+                    carbs: current.carbs || 0,
+                    nsCarbs: current.carbs || 0,
+                    bolus: current.insulin || 0,
+                })
+            )
+        } else if (
+            Schema.is(PumpHistoryEvent)(current) &&
             current._type === 'JournalEntryMealMarker' &&
             current.carb_input &&
             current.carb_input > 0
@@ -125,11 +130,11 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
 
         // don't enter the treatment if there's another treatment with the same exact timestamp
         // to prevent duped carb entries from multiple sources
-        if (mealInputs.some(a => timestampEq.equals(a.timestamp, current.timestamp) && a.hasCarbs)) {
+        if (mealInputs.some(a => timestampEq(a.timestamp, current.timestamp) && a.hasCarbs)) {
             continue
         }
 
-        if (!mealInputs.some(a => timestampEq.equals(a.timestamp, current.timestamp) && a.hasBolus)) {
+        if (!mealInputs.some(a => timestampEq(a.timestamp, current.timestamp) && a.hasBolus)) {
             console.error(
                 'Skipping bolus wizard entry',
                 i,
@@ -145,12 +150,10 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
 
     const eq = struct({
         timestamp: timestampEq,
-        carbs: eqStrict,
-        bolus: eqStrict,
+        carbs: strict(),
+        bolus: strict(),
     })
-    return uniq<MealTreatment>(eq)(mealInputs).sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    )
+    return sort(dedupeWith<MealTreatment>(mealInputs, eq), Order)
 }
 
 exports = module.exports = findMealInputs

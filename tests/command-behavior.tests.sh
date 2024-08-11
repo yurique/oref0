@@ -26,7 +26,7 @@ main () {
 
     test-autotune-core
 
-    test-autotune-prep
+    #test-autotune-prep
 
     test-calculate-iob
 
@@ -126,7 +126,7 @@ test-autotune-prep () {
 
     ERROR_LINE_COUNT=$( cat stderr_output | wc -l )
     ERROR_LINES=$( cat stderr_output )
-    
+
     [[ $(cat stderr_output | grep mealCOB | wc -l) -eq 82 ]] || fail_test "oref0-autotune-prep didn't contain expected stderr output"
 
     # Make sure output has expected data

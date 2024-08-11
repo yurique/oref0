@@ -24,6 +24,7 @@
         "preserveWatchOutput": true,
         "skipLibCheck": true,
         "strict": true,
+        "exactOptionalPropertyTypes": true,
         "stripInternal": true,
         "importHelpers": true,
         "resolveJsonModule": true

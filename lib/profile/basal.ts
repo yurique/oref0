@@ -1,11 +1,13 @@
-import type { BasalSchedule } from '../types/BasalSchedule'
+import { sort } from 'effect/Array'
+import * as BasalSchedule from '../types/BasalSchedule'
+import type { Preferences } from '../types/Preferences'
 
 /* Return basal rate(U / hr) at the provided timeOfDay */
-export function basalLookup(schedules: BasalSchedule[], now?: Date) {
+export function basalLookup(schedules: readonly BasalSchedule.BasalSchedule[], now?: Date) {
     const nowDate = now || new Date()
 
-    // @todo: check `i` because it can be undefined
-    const basalprofile_data = schedules.sort((a, b) => Number(a.i) - Number(b.i))
+    const basalprofile_data = sort(BasalSchedule.Order)(schedules)
+
     let basalRate = basalprofile_data[basalprofile_data.length - 1].rate
     if (basalRate === 0) {
         // TODO - shared node - move this print to shared object.
@@ -23,14 +25,14 @@ export function basalLookup(schedules: BasalSchedule[], now?: Date) {
     return Math.round(basalRate * 1000) / 1000
 }
 
-export function maxDailyBasal(inputs: { basals: { rate: number }[] }): number {
+export function maxDailyBasal(inputs: Preferences): number {
     const max = inputs.basals.reduce((b, a) => (a.rate > b ? a.rate : b), 0)
     return (Number(max) * 1000) / 1000
 }
 
 /*Return maximum daily basal rate(U / hr) from profile.basals */
 
-export function maxBasalLookup(inputs: { settings: { maxBasal: number } }): number {
+export function maxBasalLookup(inputs: Preferences): number | undefined {
     return inputs.settings.maxBasal
 }
 

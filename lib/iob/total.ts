@@ -1,3 +1,4 @@
+import { Schema } from '@effect/schema'
 import type { Autosens } from '../types/Autosens'
 import { InsulineCurve } from '../types/InsulineCurve'
 import type { Profile } from '../types/Profile'
@@ -64,7 +65,7 @@ export default function iobTotal(opts: Options, time: Date) {
     let curve = profile_data.curve || 'bilinear'
 
     // @todo: remove when decoding
-    if (!InsulineCurve.is(curve)) {
+    if (!Schema.is(InsulineCurve)(curve)) {
         console.error(
             `Unsupported curve function: "${curve}". Supported curves: "bilinear", "rapid-acting" (Novolog, Novorapid, Humalog, Apidra) and "ultra-rapid" (Fiasp). Defaulting to "rapid-acting".`
         )

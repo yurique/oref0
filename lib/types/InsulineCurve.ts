@@ -1,4 +1,9 @@
-import * as t from 'io-ts'
+import { Schema } from '@effect/schema'
+
+export const InsulineCurve = Schema.Literal('bilinear', 'rapid-acting', 'ultra-rapid').annotations({
+    identifier: 'InsulineCurve',
+    title: 'Insuline Curve',
+})
 
 /**
  * Insulin curve.
@@ -7,12 +12,4 @@ import * as t from 'io-ts'
  * - `rapid-acting`: Humalog
  * - `bilinear`: old curve
  */
-export type InsulineCurve = 'bilinear' | 'rapid-acting' | 'ultra-rapid'
-export const InsulineCurve: t.Type<InsulineCurve> = t.keyof(
-    {
-        bilinear: null,
-        'rapid-acting': null,
-        'ultra-rapid': null,
-    },
-    'InsulineCurve'
-)
+export type InsulineCurve = typeof InsulineCurve.Type

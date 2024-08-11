@@ -1,20 +1,13 @@
 import type { FinalResult } from '../bin/utils'
 import { console_error } from '../bin/utils'
 import getTime from '../medtronic-clock'
-import type { CarbRatioSchedule, Profile } from '../types/Profile'
+import type { Preferences } from '../types/Preferences'
 
-interface Inputs {
-    carbratio?: {
-        schedule?: CarbRatioSchedule[]
-        units: 'grams' | 'exchanges' | string
-    }
-}
-
-export default function carbRatioLookup(final_result: FinalResult, inputs: Inputs, _profile?: Profile) {
+export function carbRatioLookup(final_result: FinalResult, inputs: Preferences) {
     const now = new Date()
     const carbratio_data = inputs.carbratio
     const carbratio_schedule = carbratio_data?.schedule
-    if (typeof carbratio_data !== 'undefined' && carbratio_schedule) {
+    if (carbratio_data && carbratio_schedule) {
         if (carbratio_data.units === 'grams' || carbratio_data.units === 'exchanges') {
             //carbratio_data.schedule.sort(function (a, b) { return a.offset > b.offset });
             let carbRatio = carbratio_schedule[carbratio_schedule.length - 1]
@@ -34,7 +27,7 @@ export default function carbRatioLookup(final_result: FinalResult, inputs: Input
                 }
             }
             if (carbratio_data.units === 'exchanges') {
-                carbRatio.ratio = 12 / carbRatio.ratio
+                return 12 / carbRatio.ratio
             }
             return carbRatio.ratio
         } else {
@@ -48,5 +41,6 @@ export default function carbRatioLookup(final_result: FinalResult, inputs: Input
     }
 }
 
+export default carbRatioLookup
 carbRatioLookup.carbRatioLookup = carbRatioLookup
 exports = module.exports = carbRatioLookup

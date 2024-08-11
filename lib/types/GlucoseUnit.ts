@@ -1,10 +1,8 @@
-import * as t from 'io-ts'
+import { Schema } from '@effect/schema'
 
-export type GlucoseUnit = 'mg/dL' | 'mmol/L'
-export const GlucoseUnit: t.Type<GlucoseUnit> = t.keyof(
-    {
-        'mg/dL': null,
-        'mmol/L': null,
-    },
-    'GlucoseUnit'
-)
+export const GlucoseUnit = Schema.Literal('mg/dL', 'mmol/L').annotations({
+    identifier: 'GlucoseUnit',
+    title: 'Glucose Unit',
+})
+
+export type GlucoseUnit = typeof GlucoseUnit.Type

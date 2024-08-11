@@ -1,7 +1,8 @@
 import type { FinalResult } from '../bin/utils'
 import { console_error } from '../bin/utils'
 import { maxDailyBasal, basalLookup, maxBasalLookup } from './basal'
-import carb_ratios from './carbs'
+//import { carbRatioLookup } from './carbs'
+import carbRatioLookup from './carbs'
 import { isfLookup } from './isf'
 import * as targets from './targets'
 
@@ -100,36 +101,41 @@ export function displayedDefaults(final_result: FinalResult) {
 
 export default function generate(final_result: FinalResult, inputs: any, opts: any) {
     const profile = opts && opts.type ? opts : defaults()
+    const preferences = inputs
 
-    // check if inputs has overrides for any of the default prefs
+    // check if preferences has overrides for any of the default prefs
     // and apply if applicable
     for (const pref in profile) {
-        if (Object.prototype.hasOwnProperty.call(inputs, pref)) {
-            profile[pref] = inputs[pref]
+        if (Object.prototype.hasOwnProperty.call(preferences, pref)) {
+            profile[pref] = preferences[pref]
         }
     }
 
-    const pumpsettings_data = inputs.settings
-    if (inputs.settings.insulin_action_curve > 1) {
+    const pumpsettings_data = preferences.settings
+    if (preferences.settings.insulin_action_curve > 1) {
         profile.dia = pumpsettings_data.insulin_action_curve
     } else {
         console_error(final_result, 'DIA of', profile.dia, 'is not supported')
         return -1
     }
 
-    if (inputs.model) {
-        profile.model = inputs.model
+    if (preferences.model) {
+        profile.model = preferences.model
     }
-    profile.skip_neutral_temps = inputs.skip_neutral_temps
+    profile.skip_neutral_temps = preferences.skip_neutral_temps
 
-    profile.current_basal = basalLookup(inputs.basals)
-    profile.basalprofile = inputs.basals
-    ;[...profile.basalprofile].forEach(basalentry => {
-        basalentry.rate = Number(`${Math.round(Number(`${basalentry.rate}e+3`))}e-3`)
-    })
+    profile.current_basal = basalLookup(preferences.basals)
+    if (!profile.current_basal) {
+        console.error('ERROR: bad basal schedule', profile.current_basal)
+        return -1
+    }
+    profile.basalprofile = preferences.basals.map((basalentry: any) => ({
+        ...basalentry,
+        rate: Math.round(basalentry.rate * 100) / 100,
+    }))
 
-    profile.max_daily_basal = maxDailyBasal(inputs)
-    profile.max_basal = maxBasalLookup(inputs)
+    profile.max_daily_basal = maxDailyBasal(preferences)
+    profile.max_basal = maxBasalLookup(preferences)
     if (profile.current_basal === 0) {
         console_error(final_result, 'current_basal of', profile.current_basal, 'is not supported')
         return -1
@@ -143,11 +149,11 @@ export default function generate(final_result: FinalResult, inputs: any, opts: a
         return -1
     }
 
-    const range = targets.bgTargetsLookup(final_result, inputs, profile)
-    profile.out_units = inputs.targets.user_preferred_units
+    const range = targets.bgTargetsLookup(final_result, preferences)
+    profile.out_units = preferences.targets.user_preferred_units
     profile.min_bg = Math.round(range.min_bg)
     profile.max_bg = Math.round(range.max_bg)
-    profile.bg_targets = inputs.targets
+    profile.bg_targets = preferences.targets
     ;(profile.bg_targets.targets || []).forEach((bg_entry: any) => {
         bg_entry.high = Math.round(bg_entry.high)
         bg_entry.low = Math.round(bg_entry.low)
@@ -158,16 +164,16 @@ export default function generate(final_result: FinalResult, inputs: any, opts: a
     delete profile.bg_targets.raw
 
     profile.temptargetSet = range.temptargetSet
-    let lastResult = null
-    ;[profile.sens, lastResult] = isfLookup(inputs.isf, undefined, lastResult)
-    profile.isfProfile = inputs.isf
+    const [sens] = isfLookup(preferences.isf, undefined, null)
+    profile.sens = sens
+    profile.isfProfile = preferences.isf
     if (profile.sens < 5) {
         console_error(final_result, 'ISF of', profile.sens, 'is not supported')
         return -1
     }
-    if (typeof inputs.carbratio !== 'undefined') {
-        profile.carb_ratio = carb_ratios.carbRatioLookup(final_result, inputs, profile)
-        profile.carb_ratios = inputs.carbratio
+    if (typeof preferences.carbratio !== 'undefined') {
+        profile.carb_ratio = carbRatioLookup(final_result, preferences)
+        profile.carb_ratios = preferences.carbratio
     } else {
         console_error(final_result, "Profile wasn't given carb ratio data, cannot calculate carb_ratio")
     }

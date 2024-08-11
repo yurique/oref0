@@ -321,6 +321,8 @@ const determine_basal = function determine_basal(
     // and before using target_bg to adjust sensitivityRatio below.
     const max_iob = profile.max_iob // maximum amount of non-bolus IOB OpenAPS will ever deliver
 
+    const carb_ratio = profile.carb_ratio !== undefined ? round(profile.carb_ratio, 2) : 0
+
     // if min and max are set, then set target to their average
     let target_bg: number
     let min_bg = profile.min_bg as number
@@ -443,7 +445,7 @@ const determine_basal = function determine_basal(
         }
         //process.stderr.write(" (autosens ratio "+sensitivityRatio+")");
     }
-    console.error('; CR:', profile.carb_ratio)
+    console.error('; CR:', carb_ratio)
 
     const iob_data = Array.isArray(iobArray) ? iobArray[0] : iobArray
 
@@ -573,7 +575,7 @@ const determine_basal = function determine_basal(
     // use autosens-adjusted sens to counteract autosens meal insulin dosing adjustments so that
     // autotuned CR is still in effect even when basals and ISF are being adjusted by TT or autosens
     // this avoids overdosing insulin for large meals when low temp targets are active
-    const csf = sens / profile.carb_ratio
+    const csf = carb_ratio ? sens / carb_ratio : 0
     console.error('profile.sens:', profile.sens, 'sens:', sens, 'CSF:', csf)
 
     const maxCarbAbsorptionRate = 30 // g/h; maximum rate to assume carbs will absorb if no CI observed
@@ -682,7 +684,6 @@ const determine_basal = function determine_basal(
     let maxCOBPredBG = bg
     //var maxUAMPredBG = bg;
     //var eventualPredBG = bg;
-    let lastIOBpredBG
     let lastCOBpredBG
     let lastUAMpredBG
     //var lastZTpredBG;
@@ -807,7 +808,7 @@ const determine_basal = function determine_basal(
         }
     }
     rT.predBGs.IOB = IOBpredBGs
-    lastIOBpredBG = round(IOBpredBGs[IOBpredBGs.length - 1])
+    const lastIOBpredBG = round(IOBpredBGs[IOBpredBGs.length - 1])
     ZTpredBGs.forEach((p, i, theArray) => {
         theArray[i] = round(Math.min(401, Math.max(39, p)))
     })
@@ -965,7 +966,7 @@ const determine_basal = function determine_basal(
     rT.BGI = convert_bg(bgi, profile)
     rT.deviation = convert_bg(deviation, profile)
     rT.ISF = convert_bg(sens, profile)
-    rT.CR = round(profile.carb_ratio, 2)
+    rT.CR = carb_ratio
     rT.target_bg = convert_bg(target_bg, profile)
     rT.reason = `COB: ${rT.COB}, Dev: ${rT.deviation}, BGI: ${rT.BGI}, ISF: ${rT.ISF}, CR: ${
         rT.CR
@@ -1277,9 +1278,10 @@ const determine_basal = function determine_basal(
         // only allow microboluses with COB or low temp targets, or within DIA hours of a bolus
         if (microBolusAllowed && enableSMB && bg > threshold) {
             // never bolus more than maxSMBBasalMinutes worth of basal
-            const mealInsulinReq = round(meal_data.mealCOB / profile.carb_ratio, 3)
+            const mealInsulinReq = carb_ratio ? round(meal_data.mealCOB / carb_ratio, 3) : 0
+            let maxBolus
             if (typeof profile.maxSMBBasalMinutes === 'undefined') {
-                var maxBolus = round((profile.current_basal * 30) / 60, 1)
+                maxBolus = round((profile.current_basal * 30) / 60, 1)
                 console.error('profile.maxSMBBasalMinutes undefined: defaulting to 30m')
                 // if IOB covers more than COB, limit maxBolus to 30m of basal
             } else if (iob_data.iob > mealInsulinReq && iob_data.iob > 0) {

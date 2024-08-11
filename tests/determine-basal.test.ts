@@ -17,18 +17,24 @@ describe('round_basal', function ( ) {
     });
 
 
-    it('should round correctly with a new pump model', function() {
+    it('should round correctly with a new pump model', function () {
+        const testProfile = {
+            ...profile,
+            model: '554',
+        }
         var basal = 0.025;
-        profile.model = "554";
-        var output = round_basal(basal, profile);
+        var output = round_basal(basal, testProfile);
         output.should.equal(0.025);
         //console.error(output);
     });
 
-    it('should round correctly with an invalid pump model', function() {
+    it('should round correctly with an invalid pump model', function () {
+        const testProfile = {
+            ...profile,
+            model: 'HelloThisIsntAPumpModel',
+        }
         var basal = 0.025;
-        profile.model = "HelloThisIsntAPumpModel";
-        var output = round_basal(basal, profile);
+        var output = round_basal(basal, testProfile);
         output.should.equal(0.05);
     });
 
@@ -662,30 +668,41 @@ describe('determine-basal', function ( ) {
 
     it('maxSafeBasal current_basal_safety_multiplier of 1 should cause the current rate to be set, even if higher is needed', function () {
         var glucose_status = {"delta":5,"glucose":185,"long_avgdelta":5,"short_avgdelta":5};
-        var iob_data = {"iob":0,"activity":-0.01,"bolussnooze":0};
-        profile.current_basal_safety_multiplier = 1;
-        var output = determine_basal(glucose_status, currenttemp, iob_data, profile, autosens, meal_data, tempBasalFunctions);
+        var iob_data = { "iob": 0, "activity": -0.01, "bolussnooze": 0 };
+        const testProfile = {
+            ...profile,
+            current_basal_safety_multiplier: 1,
+        }
+        var output = determine_basal(glucose_status, currenttemp, iob_data, testProfile, autosens, meal_data, tempBasalFunctions);
         output.rate.should.equal(0.9);
         output.reason.should.match(/.*, adj. req. rate:.* to maxSafeBasal:.*, no temp, setting/);
     });
 
     it('maxSafeBasal max_daily_safety_multiplier of 1 should cause the max daily rate to be set, even if higher is needed', function () {
         var glucose_status = {"delta":5,"glucose":185,"long_avgdelta":5,"short_avgdelta":5};
-        var iob_data = {"iob":0,"activity":-0.01,"bolussnooze":0};
-        profile.current_basal_safety_multiplier = null;
-        profile.max_daily_safety_multiplier = 1;
-        var output = determine_basal(glucose_status, currenttemp, iob_data, profile, autosens, meal_data, tempBasalFunctions);
+        var iob_data = { "iob": 0, "activity": -0.01, "bolussnooze": 0 };
+        const testProfile = {
+            ...profile,
+            current_basal_safety_multiplier: null,
+            max_daily_safety_multiplier: 1,
+        }
+
+        var output = determine_basal(glucose_status, currenttemp, iob_data, testProfile, autosens, meal_data, tempBasalFunctions);
         output.rate.should.equal(1.3);
         output.reason.should.match(/.*, adj. req. rate:.* to maxSafeBasal:.*, no temp, setting/);
     });
 
     it('overriding maxSafeBasal multipliers to 10 should increase temp', function () {
         var glucose_status = {"delta":5,"glucose":285,"long_avgdelta":5,"short_avgdelta":5};
-        var iob_data = {"iob":0,"activity":-0.01,"bolussnooze":0};
-        profile.max_basal = 5;
-        profile.current_basal_safety_multiplier = 10;
-        profile.max_daily_safety_multiplier = 10;
-        var output = determine_basal(glucose_status, currenttemp, iob_data, profile, autosens, meal_data, tempBasalFunctions);
+        var iob_data = { "iob": 0, "activity": -0.01, "bolussnooze": 0 };
+        const testProfile = {
+            ...profile,
+            max_basal: 5,
+            current_basal_safety_multiplier: 10,
+            max_daily_safety_multiplier: 10,
+        }
+
+        var output = determine_basal(glucose_status, currenttemp, iob_data, testProfile, autosens, meal_data, tempBasalFunctions);
         output.rate.should.equal(5);
         output.reason.should.match(/.*, adj. req. rate:.* to maxSafeBasal:.*, no temp, setting/);
     });
@@ -699,13 +716,17 @@ describe('determine-basal', function ( ) {
 	output.duration.should.equal(30);
         output.reason.should.match(/.*, adj. req. rate:.* to maxSafeBasal: 0.05, no temp, setting 0.05/);
     });
-    
+
     it('should match the basal rate precision available on a 523', function () {
         //var currenttemp = {"duration":30,"rate":0,"temp":"absolute"};
-        var currenttemp = {"duration":0,"rate":0,"temp":"absolute"};
-        profile.current_basal = 0.825;
-        profile.model = "523";
-        var output = determine_basal(glucose_status, currenttemp, iob_data, profile, autosens, meal_data, tempBasalFunctions);
+        var currenttemp = { "duration": 0, "rate": 0, "temp": "absolute" };
+        const testProfile = {
+            ...profile,
+            current_basal: 0.825,
+            model: "523",
+        }
+
+        var output = determine_basal(glucose_status, currenttemp, iob_data, testProfile, autosens, meal_data, tempBasalFunctions);
         //console.log(output);
         //output.rate.should.equal(0);
         //output.duration.should.equal(0);
@@ -716,16 +737,52 @@ describe('determine-basal', function ( ) {
 
     it('should match the basal rate precision available on a 522', function () {
         //var currenttemp = {"duration":30,"rate":0,"temp":"absolute"};
-        var currenttemp = {"duration":0,"rate":0,"temp":"absolute"};
-        profile.current_basal = 0.875;
-        profile.model = "522";
-        var output = determine_basal(glucose_status, currenttemp, iob_data, profile, autosens, meal_data, tempBasalFunctions);
+        var currenttemp = { "duration": 0, "rate": 0, "temp": "absolute" };
+        const testProfile = {
+            ...profile,
+            current_basal: 0.875,
+            model: "522",
+        }
+
+        var output = determine_basal(glucose_status, currenttemp, iob_data, testProfile, autosens, meal_data, tempBasalFunctions);
         //console.log(output);
         //output.rate.should.equal(0);
         //output.duration.should.equal(0);
         output.rate.should.equal(0.9);
         output.duration.should.equal(30);
         output.reason.should.match(/in range.*/);
+    });
+
+    it('should match using profile without carb_ratio', function () {
+        //var currenttemp = {"duration":30,"rate":0,"temp":"absolute"};
+        var currenttemp = { "duration": 0, "rate": 0, "temp": "absolute" };
+        const testProfile = {
+            ...profile,
+            carb_ratio: undefined,
+        }
+
+        var output = determine_basal(glucose_status, currenttemp, iob_data, testProfile, autosens, meal_data, tempBasalFunctions);
+
+        expect(output).toMatchObject({
+            temp: 'absolute',
+            bg: 115,
+            tick: '+0',
+            eventualBG: 115,
+            insulinReq: 0,
+            reservoir: undefined,
+            sensitivityRatio: 1,
+            predBGs: { IOB: [ 115 ], ZT: [ 115 ] },
+            COB: 0,
+            IOB: 0,
+            BGI: -0,
+            deviation: 0,
+            ISF: 40,
+            CR: 0,
+            target_bg: 115,
+            reason: 'COB: 0, Dev: 0, BGI: 0, ISF: 40, CR: 0, minPredBG: 999, minGuardBG: 999, IOBpredBG: 115; 115-999 in range: no temp required; setting current basal of 0.9 as temp. . Setting neutral temp basal of 0.9U/hr',
+            duration: 30,
+            rate: 0.9
+        })
     });
 
 });

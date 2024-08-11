@@ -8,8 +8,8 @@ import { basalLookup } from '../profile/basal'
 import { isfLookup } from '../profile/isf'
 import type { BasalSchedule } from '../types/BasalSchedule'
 import type { GlucoseEntry } from '../types/GlucoseEntry'
-import { getGlucoseEntryDate } from '../types/GlucoseEntry'
-import type { ISFSensitivity } from '../types/Profile'
+import { getDate } from '../types/GlucoseEntry'
+import type { ISFSensitivity } from '../types/ISFSensitivity'
 import type { TempTarget } from '../types/TempTarget'
 
 interface Inputs {
@@ -39,7 +39,7 @@ function detectSensitivity(inputs: Inputs) {
     let lastSiteChange = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
     // use last 24h worth of data by default
     if (inputs.retrospective) {
-        const firstDate = getGlucoseEntryDate(glucose_data[0])
+        const firstDate = getDate(glucose_data[0])
         if (!firstDate) {
             throw new Error('Unable to find glucose date for first item')
         }

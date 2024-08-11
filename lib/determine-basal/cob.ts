@@ -26,6 +26,9 @@ function getDateFromEntry(entry: GlucoseEntry) {
     throw new TypeError('Unable to find a date in GlucoseEntry')
 }
 
+/**
+ * @todo: does it works with profile.carb_ratio === undefined?
+ */
 export default function detectCarbAbsorption(inputs: DetectCOBInput) {
     const glucose_data = inputs.glucose_data.reduce(
         (b, a) => {
@@ -162,10 +165,17 @@ export default function detectCarbAbsorption(inputs: DetectCOBInput) {
         if (!current_basal) {
             continue
         }
-        iob_inputs.profile.current_basal = current_basal
+        const newIobInputs = {
+            ...iob_inputs,
+            profile: {
+                ...iob_inputs.profile,
+                current_basal,
+            },
+        }
+
         //console.log(JSON.stringify(iob_inputs.profile));
         //console.error("Before: ", new Date().getTime());
-        const iob = get_iob(iob_inputs, true, treatments)[0]
+        const iob = get_iob(newIobInputs, true, treatments)[0]
         //console.error("After: ", new Date().getTime());
         //console.error(JSON.stringify(iob));
 
@@ -208,7 +218,7 @@ export default function detectCarbAbsorption(inputs: DetectCOBInput) {
             // if currentDeviation is > 2 * min_5m_carbimpact, assume currentDeviation/2 worth of carbs were absorbed
             // but always assume at least profile.min_5m_carbimpact (3mg/dL/5m by default) absorption
             const ci = Math.max(deviation, currentDeviation / 2, profile.min_5m_carbimpact)
-            const absorbed = (ci * profile.carb_ratio) / sens
+            const absorbed = profile.carb_ratio ? (ci * profile.carb_ratio) / sens : 0
             // and add that to the running total carbsAbsorbed
             //console.error("carbsAbsorbed:",carbsAbsorbed,"absorbed:",absorbed,"bgTime:",bgTime,"BG:",bucketed_data[i].glucose)
             carbsAbsorbed += absorbed

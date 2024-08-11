@@ -1,25 +1,20 @@
-import * as t from 'io-ts'
+import { Schema } from '@effect/schema'
+import * as O from 'effect/Order'
 import { PositiveInt } from './PositiveInt'
-import { PositiveNumber } from './PositiveNumber'
 import { ScheduleStart } from './ScheduleStart'
 
-export interface BasalSchedule {
-    i?: t.Int
-    start: ScheduleStart
-    minutes: PositiveInt
-    rate: PositiveNumber
-}
+export const BasalSchedule = Schema.Struct({
+    i: Schema.optionalWith(Schema.Int, { exact: true }),
+    start: Schema.optional(ScheduleStart),
+    minutes: PositiveInt,
+    rate: Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)),
+})
 
-export const BasalSchedule: t.Type<BasalSchedule, unknown> = t.intersection(
-    [
-        t.type({
-            start: ScheduleStart,
-            minutes: PositiveInt,
-            rate: PositiveNumber,
-        }),
-        t.partial({
-            i: t.Int,
-        }),
-    ],
-    'BasalSchedule'
-)
+export type BasalSchedule = typeof BasalSchedule.Type
+
+export const Order: O.Order<BasalSchedule> = O.combineAll([
+    O.make<BasalSchedule>((a, b) => O.number(Number(a.i), Number(b.i))),
+    O.struct({
+        //start: ScheduleStartOrder,
+    }),
+])

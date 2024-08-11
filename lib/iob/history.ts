@@ -1,10 +1,10 @@
-import * as t from 'io-ts'
+import { Schema } from '@effect/schema'
 import { tz } from '../date'
 import * as date from '../date'
 import * as basalprofile from '../profile/basal'
-import { Autosens } from '../types/Autosens'
+import type { Autosens } from '../types/Autosens'
 import { NightscoutTreatment } from '../types/NightscoutTreatment'
-import { Profile } from '../types/Profile'
+import type { Profile } from '../types/Profile'
 import { PumpHistoryEvent } from '../types/PumpHistoryEvent'
 import type { BasalTreatment, BolusTreatment, InsulinTreatment } from './InsulinTreatment'
 
@@ -20,19 +20,13 @@ interface PumpSuspendResume {
     duration: number
 }
 
-const Input = t.intersection([
-    t.type({
-        history: t.array(t.union([NightscoutTreatment, PumpHistoryEvent])),
-        profile: Profile,
-    }),
-    t.partial({
-        history24: t.array(t.union([NightscoutTreatment, PumpHistoryEvent])),
-        autosens: Autosens,
-        clock: t.string,
-    }),
-])
-
-export type Input = t.TypeOf<typeof Input>
+export interface Input {
+    history: Array<NightscoutTreatment | PumpHistoryEvent>
+    history24?: Array<NightscoutTreatment | PumpHistoryEvent>
+    profile: Profile
+    autosens?: Autosens
+    clock?: string
+}
 
 function splitTimespanWithOneSplitter(event: BasalTreatment, splitter: Splitter) {
     if (splitter.type !== 'recurring') {
@@ -231,10 +225,13 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
     let lastRecordTime = now
 
     // Gather the times the pump was suspended and resumed
-    for (var i = 0; i < pumpHistory.length; i++) {
+    for (let i = 0; i < pumpHistory.length; i++) {
         const current = pumpHistory[i]
 
-        if (!PumpHistoryEvent.is(current) || (current._type !== 'PumpSuspend' && current._type !== 'PumpResume')) {
+        if (
+            !Schema.is(PumpHistoryEvent)(current) ||
+            (current._type !== 'PumpSuspend' && current._type !== 'PumpResume')
+        ) {
             continue
         }
 
@@ -268,10 +265,11 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
 
     let j = 0 // matching pumpResumes entry;
 
+    let iSuspends = 0
     // Match the resumes with the suspends to get durations
-    for (i = 0; i < pumpSuspends.length; i++) {
+    for (iSuspends = 0; iSuspends < pumpSuspends.length; iSuspends++) {
         for (; j < pumpResumes.length; j++) {
-            if (pumpResumes[j].date > pumpSuspends[i].date) {
+            if (pumpResumes[j].date > pumpSuspends[iSuspends].date) {
                 break
             }
         }
@@ -283,12 +281,12 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
             // through the last record beginning at the last suspend
             // since we don't have a matching resume.
             currentlySuspended = true
-            lastSuspendTime = pumpSuspends[i].timestamp
+            lastSuspendTime = pumpSuspends[iSuspends].timestamp
 
             break
         }
 
-        pumpSuspends[i].duration = (pumpResumes[j].date - pumpSuspends[i].date) / 60 / 1000
+        pumpSuspends[iSuspends].duration = (pumpResumes[j].date - pumpSuspends[iSuspends].date) / 60 / 1000
     }
 
     // These checks indicate something isn't quite aligned.
@@ -309,21 +307,21 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
         )
     }
 
-    if (i < pumpSuspends.length - 1) {
+    if (iSuspends < pumpSuspends.length - 1) {
         // truncate any extra suspends. if we had any extras
         // the error checks above would have issued a error log message
-        pumpSuspends.splice(i + 1, pumpSuspends.length - i - 1)
+        pumpSuspends.splice(iSuspends + 1, pumpSuspends.length - iSuspends - 1)
     }
 
     // Pick relevant events for processing and clean the data
 
-    for (i = 0; i < pumpHistory.length; i++) {
+    for (let i = 0; i < pumpHistory.length; i++) {
         let current: NightscoutTreatment | PumpHistoryEvent = pumpHistory[i]
-        if (NightscoutTreatment.is(current) && current.bolus && current.bolus._type === 'Bolus') {
+        if (Schema.is(NightscoutTreatment)(current) && current.bolus && current.bolus._type === 'Bolus') {
             current = current.bolus
         }
 
-        const timestamp = NightscoutTreatment.is(current) ? current.created_at : current.timestamp
+        const timestamp = Schema.is(NightscoutTreatment)(current) ? current.created_at : current.timestamp
         const currentRecordTime = tz(new Date(timestamp))
         //console.error(current);
         //console.error(currentRecordTime,lastRecordTime);
@@ -335,7 +333,7 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
         } else {
             lastRecordTime = currentRecordTime
         }
-        if (PumpHistoryEvent.is(current) && current._type === 'Bolus') {
+        if (Schema.is(PumpHistoryEvent)(current) && current._type === 'Bolus') {
             const started_at = tz(new Date(current.timestamp))
             if (started_at > now) {
                 //console.error("Warning: ignoring",current.amount,"U bolus in the future at",temp.started_at);
@@ -350,7 +348,7 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
                 })
             }
         } else if (
-            NightscoutTreatment.is(current) &&
+            Schema.is(NightscoutTreatment)(current) &&
             (current.eventType === 'Meal Bolus' ||
                 current.eventType === 'Correction Bolus' ||
                 current.eventType === 'Snack Bolus' ||
@@ -366,7 +364,7 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
                 date: started_at.getTime(),
                 insulin: current.insulin!,
             })
-        } else if (NightscoutTreatment.is(current) && current.enteredBy === 'xdrip') {
+        } else if (Schema.is(NightscoutTreatment)(current) && current.enteredBy === 'xdrip') {
             const started_at = tz(new Date(current.created_at))
             // @todo check for undefined insulin
             tempBoluses.push({
@@ -375,7 +373,7 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
                 date: started_at.getTime(),
                 insulin: current.insulin!,
             })
-        } else if (NightscoutTreatment.is(current) && current.enteredBy === 'HAPP_App' && current.insulin) {
+        } else if (Schema.is(NightscoutTreatment)(current) && current.enteredBy === 'HAPP_App' && current.insulin) {
             const started_at = tz(new Date(current.created_at))
             // @todo check for undefined insulin
             tempBoluses.push({
@@ -385,7 +383,7 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
                 insulin: current.insulin!,
             })
         } else if (
-            NightscoutTreatment.is(current) &&
+            Schema.is(NightscoutTreatment)(current) &&
             current.eventType === 'Temp Basal' &&
             (current.enteredBy === 'HAPP_App' || current.enteredBy === 'openaps://AndroidAPS')
         ) {
@@ -398,7 +396,7 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
                 rate: current.absolute!,
                 duration: current.duration!,
             })
-        } else if (NightscoutTreatment.is(current) && current.eventType === 'Temp Basal') {
+        } else if (Schema.is(NightscoutTreatment)(current) && current.eventType === 'Temp Basal') {
             const started_at = tz(new Date(current.created_at))
             let rate = current.rate
             // Loop reports the amount of insulin actually delivered while the temp basal was running
@@ -415,7 +413,7 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
                 rate: rate!,
                 duration: current.duration!,
             })
-        } else if (PumpHistoryEvent.is(current) && current._type === 'TempBasal') {
+        } else if (Schema.is(PumpHistoryEvent)(current) && current._type === 'TempBasal') {
             if (current.temp === 'percent') {
                 continue
             }
@@ -423,7 +421,7 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
             let duration
             const previous = i > 0 ? pumpHistory[i - 1] : undefined
             if (
-                PumpHistoryEvent.is(previous) &&
+                Schema.is(PumpHistoryEvent)(previous) &&
                 previous.timestamp === timestamp &&
                 previous._type === 'TempBasalDuration'
             ) {
@@ -432,7 +430,7 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
                 for (let iter = 0; iter < pumpHistory.length; iter++) {
                     const item = pumpHistory[iter]
                     if (
-                        PumpHistoryEvent.is(item) &&
+                        Schema.is(PumpHistoryEvent)(item) &&
                         item.timestamp === timestamp &&
                         item._type === 'TempBasalDuration'
                     ) {
@@ -464,11 +462,11 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
 
         // Add a temp basal cancel event to ignore future temps and reduce predBG oscillation
         // start the zero temp 1m in the future to avoid clock skew
-        const started_at = new Date(now.getTime() + 1 * 60 * 1000)
+        const started_atTemp = new Date(now.getTime() + 1 * 60 * 1000)
         tempHistory.push({
-            timestamp: started_at.toISOString(),
-            started_at,
-            date: started_at.getTime(),
+            timestamp: started_atTemp.toISOString(),
+            started_at: started_atTemp,
+            date: started_atTemp.getTime(),
             rate: 0,
             duration: zeroTempDuration || 0,
         })
@@ -478,7 +476,7 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
 
     tempHistory = tempHistory.sort((a, b) => a.date - b.date)
 
-    for (i = 0; i < tempHistory.length - 1; i++) {
+    for (let i = 0; i < tempHistory.length - 1; i++) {
         const item = tempHistory[i]
         const next = tempHistory[i + 1]
         // @todo: check duration when undefined (or null)
@@ -550,9 +548,9 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
         // insulin is present prior to resume will be aged
         // out due to DIA.
         if (suspendedPrior && max_dia_ago < firstResumeDate) {
-            var suspendStart = new Date(max_dia_ago)
-            var suspendStartDate = suspendStart.getTime()
-            var started_at = tz(suspendStart)
+            const suspendStart = new Date(max_dia_ago)
+            const suspendStartDate = suspendStart.getTime()
+            const started_at = tz(suspendStart)
 
             zTempSuspendBasals.push({
                 rate: 0,
@@ -565,9 +563,9 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
 
         if (currentlySuspended) {
             // @todo check why lastSuspendTime can be undefined
-            var suspendStart = lastSuspendTime ? new Date(lastSuspendTime) : new Date()
-            var suspendStartDate = suspendStart.getTime()
-            var started_at = tz(suspendStart)
+            const suspendStart = lastSuspendTime ? new Date(lastSuspendTime) : new Date()
+            const suspendStartDate = suspendStart.getTime()
+            const started_at = tz(suspendStart)
 
             // @todo check why lastSuspendTime can be undefined
             zTempSuspendBasals.push({
@@ -591,15 +589,23 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
 
     // iterate through the temp basals and create bolus events from temps that affect IOB
 
-    for (i = 0; i < splitHistory.length; i++) {
+    for (let i = 0; i < splitHistory.length; i++) {
         const currentItem = splitHistory[i]
 
         if (currentItem.duration > 0) {
-            var target_bg
+            let target_bg
 
             let currentRate = profile_data.current_basal
             if (profile_data.basalprofile && profile_data.basalprofile.length > 0) {
-                currentRate = basalprofile.basalLookup(profile_data.basalprofile, new Date(currentItem.timestamp))
+                const newCurrentRate = basalprofile.basalLookup(
+                    profile_data.basalprofile,
+                    new Date(currentItem.timestamp)
+                )
+                if (!newCurrentRate) {
+                    // @todo: handle errors
+                    throw new Error('Unable to find basal rate for iob time')
+                }
+                currentRate = newCurrentRate
             }
 
             if (typeof profile_data.min_bg !== 'undefined' && typeof profile_data.max_bg !== 'undefined') {
@@ -609,13 +615,12 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
             //sensitivityRatio = 2/(2+(target_bg-100)/40);
             //currentRate = profile_data.current_basal * sensitivityRatio;
             //}
-            var sensitivityRatio
+            let sensitivityRatio
             const profile = profile_data
             const normalTarget = 100 // evaluate high/low temptarget against 100, not scheduled basal (which might change)
+            let halfBasalTarget = 160 // when temptarget is 160 mg/dL, run 50% basal (120 = 75%; 140 = 60%)
             if (profile.half_basal_exercise_target) {
-                var halfBasalTarget = profile.half_basal_exercise_target
-            } else {
-                halfBasalTarget = 160 as t.Int // when temptarget is 160 mg/dL, run 50% basal (120 = 75%; 140 = 60%)
+                halfBasalTarget = profile.half_basal_exercise_target
             }
             if (profile.exercise_mode && profile.temptargetSet && target_bg && target_bg >= normalTarget + 5) {
                 // w/ target 100, temp target 110 = .89, 120 = 0.8, 140 = 0.67, 160 = .57, and 200 = .44

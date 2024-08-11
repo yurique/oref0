@@ -1,7 +1,7 @@
-import { getGlucoseEntryDate, type GlucoseEntry } from './types/GlucoseEntry'
+import { getDate, type GlucoseEntry } from './types/GlucoseEntry'
 
 function getDateFromEntry(entry: GlucoseEntry) {
-    const date = getGlucoseEntryDate(entry)
+    const date = getDate(entry)
 
     if (!date) {
         throw new TypeError('Unable to find a date in GlucoseEntry')
