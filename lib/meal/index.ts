@@ -1,23 +1,25 @@
+import { Schema } from '@effect/schema'
 import { tz } from '../date'
-import type { BasalSchedule } from '../types/BasalSchedule'
-import type { GlucoseEntry } from '../types/GlucoseEntry'
-import type { NightscoutTreatment } from '../types/NightscoutTreatment'
-import type { Profile } from '../types/Profile'
-import type { PumpHistoryEvent } from '../types/PumpHistoryEvent'
-import type { CarbEntry } from './history'
+import { BasalSchedule } from '../types/BasalSchedule'
+import { CarbEntry } from '../types/CarbEntry'
+import { GlucoseEntry } from '../types/GlucoseEntry'
+import { NightscoutTreatment } from '../types/NightscoutTreatment'
+import { Profile } from '../types/Profile'
+import { PumpHistoryEvent } from '../types/PumpHistoryEvent'
 import find_meals from './history'
 import sum from './total'
 
-interface Input {
-    history: Array<PumpHistoryEvent | NightscoutTreatment>
-    carbs: CarbEntry[]
-    profile: Profile
-    basalprofile?: BasalSchedule[]
-    glucose?: GlucoseEntry[]
-    clock: string
-}
+const Input = Schema.Struct({
+    history: Schema.Array(Schema.Union(NightscoutTreatment, PumpHistoryEvent)),
+    carbs: Schema.Array(CarbEntry),
+    profile: Profile,
+    basalprofile: Schema.optionalWith(Schema.Array(BasalSchedule), { nullable: true }),
+    glucose: Schema.optionalWith(Schema.Array(GlucoseEntry), { nullable: true }),
+    clock: Schema.String,
+})
 
-export default function generate(inputs: Input) {
+function generate(input: unknown) {
+    const inputs = Schema.decodeUnknownSync(Input)(input)
     const treatments = find_meals(inputs)
 
     const opts = {
@@ -34,4 +36,4 @@ export default function generate(inputs: Input) {
     return /* meal_data */ sum(opts, clock)
 }
 
-exports = module.exports = generate
+export default module.exports = generate

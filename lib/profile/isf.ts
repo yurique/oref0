@@ -45,5 +45,3 @@ export function isfLookup(
 }
 
 export default isfLookup
-isfLookup.isfLookup = isfLookup
-exports = module.exports = isfLookup

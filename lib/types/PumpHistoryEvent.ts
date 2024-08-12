@@ -1,4 +1,5 @@
 import { Schema } from '@effect/schema'
+import * as O from 'effect/Order'
 import { EventType } from './EventType'
 
 export const TempType = Schema.Literal('absolute', 'percent')
@@ -21,3 +22,5 @@ export const PumpHistoryEvent = Schema.Struct({
 })
 
 export type PumpHistoryEvent = typeof PumpHistoryEvent.Type
+
+export const Order: O.Order<PumpHistoryEvent> = O.mapInput(O.Date, a => new Date(a.timestamp))

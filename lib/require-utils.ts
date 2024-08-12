@@ -1,6 +1,6 @@
 import * as fs from 'fs'
 
-function safeRequire(path: string) {
+export function safeRequire(path: string) {
     let resolved
 
     try {
@@ -13,7 +13,7 @@ function safeRequire(path: string) {
     return resolved
 }
 
-function safeLoadFile(path: string) {
+export function safeLoadFile(path: string) {
     let resolved
 
     try {
@@ -25,7 +25,7 @@ function safeLoadFile(path: string) {
     return resolved
 }
 
-function requireWithTimestamp(path: string) {
+export function requireWithTimestamp(path: string) {
     const resolved = safeLoadFile(path)
 
     if (resolved) {
@@ -69,10 +69,4 @@ if (!module.parent) {
     } else {
         console.log('test failed')
     }
-}
-
-module.exports = {
-    safeRequire: safeRequire,
-    requireWithTimestamp: requireWithTimestamp,
-    safeLoadFile: safeLoadFile,
 }

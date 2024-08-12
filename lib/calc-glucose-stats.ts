@@ -30,7 +30,3 @@ export function updateGlucoseStats(options: Options) {
 
     return options.glucose_hist
 }
-
-exports = module.exports = {
-    updateGlucoseStats,
-}

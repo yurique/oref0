@@ -2,10 +2,9 @@ import { Schema } from '@effect/schema'
 import { tz } from '../date'
 import * as date from '../date'
 import * as basalprofile from '../profile/basal'
-import type { Autosens } from '../types/Autosens'
 import { NightscoutTreatment } from '../types/NightscoutTreatment'
-import type { Profile } from '../types/Profile'
 import { PumpHistoryEvent } from '../types/PumpHistoryEvent'
+import { Input } from './Input'
 import type { BasalTreatment, BolusTreatment, InsulinTreatment } from './InsulinTreatment'
 
 interface Splitter {
@@ -18,14 +17,6 @@ interface PumpSuspendResume {
     started_at: Date
     date: number
     duration: number
-}
-
-export interface Input {
-    history: Array<NightscoutTreatment | PumpHistoryEvent>
-    history24?: Array<NightscoutTreatment | PumpHistoryEvent>
-    profile: Profile
-    autosens?: Autosens
-    clock?: string
 }
 
 function splitTimespanWithOneSplitter(event: BasalTreatment, splitter: Splitter) {
@@ -206,7 +197,12 @@ function splitAroundSuspends(
     return events
 }
 
-export default function calcTempTreatments(inputs: Input, zeroTempDuration?: number): InsulinTreatment[] {
+export default function generate(input: unknown, zeroTempDuration?: number) {
+    const inputs = Schema.decodeUnknownSync(Input)(input)
+    return findInsulin(inputs, zeroTempDuration)
+}
+
+export function findInsulin(inputs: Input, zeroTempDuration?: number): InsulinTreatment[] {
     const pumpHistory = [...inputs.history, ...(inputs.history24 || [])]
     const profile_data = inputs.profile
     const autosens_data = inputs.autosens
@@ -660,4 +656,4 @@ export default function calcTempTreatments(inputs: Input, zeroTempDuration?: num
     return all_data.sort((a, b) => a.date - b.date)
 }
 
-exports = module.exports = calcTempTreatments
+//exports = module.exports = generate

@@ -1,15 +1,15 @@
-import get_iob from '../iob'
-import type { Input as IOBInput } from '../iob/history'
-import find_insulin from '../iob/history'
+import { getIob } from '../iob'
+import type { Input as IOBInput } from '../iob/Input'
+import { findInsulin } from '../iob/history'
 import * as basal from '../profile/basal'
 import { isfLookup } from '../profile/isf'
 import type { BasalSchedule } from '../types/BasalSchedule'
-import type { GlucoseEntry } from '../types/GlucoseEntry'
+import { getGlucose, type GlucoseEntry } from '../types/GlucoseEntry'
 
 export interface DetectCOBInput {
-    glucose_data: GlucoseEntry[]
+    glucose_data: ReadonlyArray<GlucoseEntry>
     iob_inputs: IOBInput
-    basalprofile?: BasalSchedule[]
+    basalprofile?: ReadonlyArray<BasalSchedule>
     mealTime: number
     ciTime?: number
 }
@@ -29,15 +29,15 @@ function getDateFromEntry(entry: GlucoseEntry) {
 /**
  * @todo: does it works with profile.carb_ratio === undefined?
  */
-export default function detectCarbAbsorption(inputs: DetectCOBInput) {
+function detectCarbAbsorption(inputs: DetectCOBInput) {
     const glucose_data = inputs.glucose_data.reduce(
         (b, a) => {
-            const glucose = a.glucose || a.sgv
+            const glucose = getGlucose(a)
             return glucose ? [...b, { ...a, glucose, date: getDateFromEntry(a) }] : b
         },
         [] as (GlucoseEntry & { glucose: number; date: number })[]
     )
-    const iob_inputs = inputs.iob_inputs
+    let iob_inputs = inputs.iob_inputs
     const basalprofile = inputs.basalprofile
     /* TODO why does declaring profile break tests-command-behavior.tests.sh?
        because it is a global variable used in other places.*/
@@ -48,7 +48,7 @@ export default function detectCarbAbsorption(inputs: DetectCOBInput) {
     //console.error(mealTime, ciTime);
 
     // get treatments from pumphistory once, not every time we get_iob()
-    const treatments = find_insulin(inputs.iob_inputs)
+    const treatments = findInsulin(inputs.iob_inputs)
 
     if (!glucose_data.length) {
         // @todo: return something empty
@@ -160,7 +160,10 @@ export default function detectCarbAbsorption(inputs: DetectCOBInput) {
             continue
         }
 
-        iob_inputs.clock = bgTime.toISOString()
+        iob_inputs = {
+            ...iob_inputs,
+            clock: bgTime.toISOString(),
+        }
         const current_basal = basal.basalLookup(basalprofile || [], bgTime)
         if (!current_basal) {
             continue
@@ -175,7 +178,7 @@ export default function detectCarbAbsorption(inputs: DetectCOBInput) {
 
         //console.log(JSON.stringify(iob_inputs.profile));
         //console.error("Before: ", new Date().getTime());
-        const iob = get_iob(newIobInputs, true, treatments)[0]
+        const iob = getIob(newIobInputs, true, treatments)[0]
         //console.error("After: ", new Date().getTime());
         //console.error(JSON.stringify(iob));
 
@@ -238,4 +241,5 @@ export default function detectCarbAbsorption(inputs: DetectCOBInput) {
         allDeviations: allDeviations,
     }
 }
-module.exports = detectCarbAbsorption
+
+export default module.exports = detectCarbAbsorption

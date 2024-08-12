@@ -42,5 +42,3 @@ export function carbRatioLookup(final_result: FinalResult, inputs: Preferences) 
 }
 
 export default carbRatioLookup
-carbRatioLookup.carbRatioLookup = carbRatioLookup
-exports = module.exports = carbRatioLookup

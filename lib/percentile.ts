@@ -25,5 +25,3 @@ export default function percentile(arr: number[], p: number) {
     }
     return arr[lower] * (1 - weight) + arr[upper] * weight
 }
-
-exports = module.exports = percentile

@@ -3,19 +3,15 @@
 import { Schema } from '@effect/schema'
 import { dedupeWith, sort } from 'effect/Array'
 import { struct, strict } from 'effect/Equivalence'
+import type { CarbEntry } from '../types/CarbEntry'
 import { NightscoutTreatment } from '../types/NightscoutTreatment'
 import { PumpHistoryEvent } from '../types/PumpHistoryEvent'
 import type { MealTreatment } from './MealTreatment'
 import { Order } from './MealTreatment'
 
-export interface CarbEntry {
-    carbs?: number
-    created_at?: string
-}
-
 export interface Input {
-    history: Array<PumpHistoryEvent | NightscoutTreatment>
-    carbs: CarbEntry[]
+    history: ReadonlyArray<PumpHistoryEvent | NightscoutTreatment>
+    carbs: ReadonlyArray<CarbEntry>
 }
 
 interface TempMealTreatment extends MealTreatment {
@@ -65,13 +61,12 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
             bolusWizardInputs.push(current)
         } else if (
             Schema.is(NightscoutTreatment)(current) &&
-            current.created_at &&
             (current.eventType === 'Meal Bolus' ||
                 current.eventType === 'Correction Bolus' ||
                 current.eventType === 'Snack Bolus' ||
                 current.eventType === 'Bolus Wizard' ||
                 current.eventType === 'Carb Correction') &&
-            current.carbs
+            current.carbs !== undefined
         ) {
             //imports carbs entered through Nightscout Care Portal
             //"Bolus Wizard" refers to the Nightscout Bolus Wizard, not the Medtronic Bolus Wizard
@@ -84,7 +79,7 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
                     nsCarbs: current.carbs,
                 })
             )
-        } else if (Schema.is(NightscoutTreatment)(current) && current.enteredBy === 'xdrip' && current.created_at) {
+        } else if (Schema.is(NightscoutTreatment)(current) && current.enteredBy === 'xdrip') {
             mealInputs.push(
                 createMeal(current.created_at, {
                     carbs: current.carbs || 0,
@@ -92,12 +87,7 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
                     bolus: current.insulin || 0,
                 })
             )
-        } else if (
-            Schema.is(NightscoutTreatment)(current) &&
-            current.carbs &&
-            current.carbs > 0 &&
-            current.created_at
-        ) {
+        } else if (Schema.is(NightscoutTreatment)(current) && current.carbs && current.carbs > 0) {
             mealInputs.push(
                 createMeal(current.created_at, {
                     carbs: current.carbs || 0,
@@ -155,5 +145,3 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
     })
     return sort(dedupeWith<MealTreatment>(mealInputs, eq), Order)
 }
-
-exports = module.exports = findMealInputs

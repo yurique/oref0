@@ -14,8 +14,3 @@ export const format = (a: Date) => {
         .toString()
         .padStart(2, '0')}`
 }
-
-exports = exports.default = {
-    tz: tz,
-    format,
-}

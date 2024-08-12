@@ -1,4 +1,4 @@
-const percentile = require('../percentile')
+import percentile from '../percentile'
 
 // does three things - tunes basals, ISF, and CSF
 
@@ -735,4 +735,4 @@ function tuneAllTheThings(inputs: any) {
     return autotuneOutput
 }
 
-exports = module.exports = tuneAllTheThings
+export default module.exports = tuneAllTheThings

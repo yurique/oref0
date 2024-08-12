@@ -104,13 +104,14 @@ if (!module.parent) {
     // Always keep the curve value up to date with what's in the user preferences
     profile_data.curve = pumpprofile_data.curve;
 
+    let glucose_data = []
     try {
-        var glucose_data = JSON.parse(fs.readFileSync(glucose_input, 'utf8'));
+        glucose_data = JSON.parse(fs.readFileSync(glucose_input, 'utf8'));
     } catch (e) {
         return console.error("Warning: could not parse "+glucose_input, e);
     }
 
-    var carb_data = { };
+    var carb_data = [];
     if (typeof carb_input !== 'undefined') {
         try {
             carb_data = JSON.parse(fs.readFileSync(carb_input, 'utf8'));

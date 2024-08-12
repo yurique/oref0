@@ -6,7 +6,8 @@
         "test": "jest",
         "global-install": "npm install && npm run build && sudo npm link && sudo npm link oref0 && sudo npm install -g && npm install -g",
         "build": "tsc",
-        "lint": "eslint lib/"
+        "lint": "eslint lib/",
+        "watch": "tsc --watch"
     },
     "repository": {
         "type": "git",

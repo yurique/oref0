@@ -1,4 +1,6 @@
-import { getDate, type GlucoseEntry } from './types/GlucoseEntry'
+import { Schema } from '@effect/schema'
+import { getDate, getGlucose, GlucoseEntry } from './types/GlucoseEntry'
+import type { LastGlucose } from './types/LastGlucose'
 
 function getDateFromEntry(entry: GlucoseEntry) {
     const date = getDate(entry)
@@ -10,11 +12,16 @@ function getDateFromEntry(entry: GlucoseEntry) {
     return date
 }
 
-const getLastGlucose = function (input: GlucoseEntry[]) {
+function generate(input: unknown) {
+    const glucoseData = Schema.decodeUnknownSync(Schema.Array(GlucoseEntry))(input)
+    return getLastGlucose(glucoseData)
+}
+
+export const getLastGlucose = function (input: ReadonlyArray<GlucoseEntry>): LastGlucose {
     const data = input.reduce(
         (b, a) => {
-            const glucose = a.glucose || a.sgv
-            return glucose ? [...b, { ...a, glucose }] : b
+            const glucose = getGlucose(a)
+            return [...b, { ...a, glucose }]
         },
         [] as (GlucoseEntry & { glucose: number })[]
     )
@@ -106,5 +113,4 @@ const getLastGlucose = function (input: GlucoseEntry[]) {
     }
 }
 
-export default getLastGlucose
-module.exports = getLastGlucose
+export default module.exports = generate

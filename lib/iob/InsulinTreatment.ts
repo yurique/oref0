@@ -1,3 +1,13 @@
+import { Schema } from '@effect/schema'
+
+const BasalTreatment = Schema.Struct({
+    timestamp: Schema.String,
+    started_at: Schema.ValidDateFromSelf,
+    date: Schema.Number,
+    rate: Schema.Number,
+    duration: Schema.Number,
+})
+
 export interface BasalTreatment {
     timestamp: string
     started_at: Date

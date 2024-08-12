@@ -15,9 +15,15 @@
 
 // Define various functions used later on, in the main function determine_basal() below
 
+import { Schema } from '@effect/schema'
+import { getMaxSafeBasal, setTempBasal } from '../basal-set-temp'
+import { RecentCarbs } from '../meal/RecentCarbs'
 import round_basal from '../round-basal'
-import type { Autosens } from '../types/Autosens'
-import type { Profile } from '../types/Profile'
+import { Autosens } from '../types/Autosens'
+import { IOB } from '../types/IOB'
+import { LastGlucose } from '../types/LastGlucose'
+import { Profile } from '../types/Profile'
+import { TempBasal } from '../types/TempBasal'
 
 // Rounds value to 'digits' decimal places
 function round(value: number, digits?: number) {
@@ -44,21 +50,10 @@ function convert_bg(value: number, profile: Profile) {
     }
 }
 
-interface MealData {
-    bwFound?: boolean
-    mealCOB: number
-    carbs: number
-    bwCarbs?: number
-    lastCarbTime: number
-    slopeFromMaxDeviation: number
-    slopeFromMinDeviation: number
-    reason?: string
-}
-
 function enable_smb(
     profile: Profile,
     microBolusAllowed: boolean,
-    meal_data: MealData,
+    meal_data: RecentCarbs,
     bg: number,
     target_bg: number,
     high_bg: number | undefined
@@ -142,46 +137,40 @@ function enable_smb(
     return false
 }
 
-interface GlucoseStatus {
-    glucose: number
-    delta: number
-    noise: number
-    date: string | number
-    short_avgdelta: number
-    long_avgdelta: number
-    device?: string
-    last_cal?: number
+const Input = Schema.Struct({
+    glucose: LastGlucose,
+    currenttemp: TempBasal,
+    iobTicks: Schema.Array(IOB),
+    profile: Profile,
+    autosens: Schema.optional(Autosens),
+    meal: RecentCarbs,
+    microBolusAllowed: Schema.Boolean,
+    reservoir: Schema.Number,
+    currentTime: Schema.optional(Schema.Union(Schema.DateFromSelf, Schema.DateFromString).pipe(Schema.validDate())),
+})
+
+function generate(input: unknown) {
+    const r = Schema.decodeUnknownSync(Input)(input)
+    return determine_basal(
+        r.glucose,
+        r.currenttemp,
+        r.iobTicks,
+        r.profile,
+        r.autosens,
+        r.meal,
+        r.microBolusAllowed,
+        r.reservoir,
+        r.currentTime
+    )
 }
 
-interface IOBTick {
-    activity: number
-    iob: number
-    lastTemp?: {
-        date: number
-        duration: number
-        rate: number
-    }
-    iobWithZeroTemp: {
-        activity: number
-    }
-    lastBolusTime: number
-}
-
-interface CurrentTemp {
-    timestamp: string
-    temp: 'absolute' | string
-    rate: number
-    duration: number
-}
-
-const determine_basal = function determine_basal(
-    glucose_status: GlucoseStatus,
-    currenttemp: CurrentTemp,
-    iobArray: IOBTick | IOBTick[],
+export const determine_basal = function determine_basal(
+    glucose_status: LastGlucose,
+    currenttemp: TempBasal,
+    iob_ticks: ReadonlyArray<IOB>,
     profile: Profile,
     autosens_data: Autosens | undefined,
-    meal_data: MealData,
-    tempBasalFunctions: any,
+    meal_data: RecentCarbs,
     microBolusAllowed: boolean,
     reservoir_data: number,
     currentTime?: Date
@@ -214,22 +203,12 @@ const determine_basal = function determine_basal(
         [k: string]: unknown
     } = {} //short for requestedTemp
 
-    let deliverAt = new Date()
-    if (currentTime) {
-        deliverAt = currentTime
-    }
+    const deliverAt = currentTime || new Date()
 
-    if (typeof profile === 'undefined' || typeof profile.current_basal === 'undefined') {
-        rT.error = 'Error: could not get current basal rate'
-        return rT
-    }
     const profile_current_basal = round_basal(profile.current_basal, profile)
     let basal = profile_current_basal
 
-    let systemTime = new Date()
-    if (currentTime) {
-        systemTime = currentTime
-    }
+    const systemTime = currentTime || new Date()
     const bgTime = new Date(glucose_status.date)
     const minAgo = round((systemTime.getTime() - bgTime.getTime()) / 60 / 1000, 1)
 
@@ -256,13 +235,13 @@ const determine_basal = function determine_basal(
     let tooflat = false
     if (
         bg > 60 &&
-        glucose_status.delta == 0 &&
+        glucose_status.delta === 0 &&
         glucose_status.short_avgdelta > -1 &&
         glucose_status.short_avgdelta < 1 &&
         glucose_status.long_avgdelta > -1 &&
         glucose_status.long_avgdelta < 1
     ) {
-        if (glucose_status.device == 'fakecgm') {
+        if (glucose_status.device === 'fakecgm') {
             console.error(
                 `CGM data is unchanged (${bg}+${glucose_status.delta}) for 5m w/ ${glucose_status.short_avgdelta} mg/dL ~15m change & ${glucose_status.long_avgdelta} mg/dL ~45m change`
             )
@@ -298,7 +277,7 @@ const determine_basal = function determine_basal(
             rT.rate = basal
             return rT
             // don't use setTempBasal(), as it has logic that allows <120% high temps to continue running
-            //return tempBasalFunctions.setTempBasal(basal, 30, profile, rT, currenttemp);
+            //return setTempBasal(basal, 30, profile, rT, currenttemp);
         } else if (currenttemp.rate === 0 && currenttemp.duration > 30) {
             //shorten long zero temps to 30m
             rT.reason += `. Shortening ${currenttemp.duration}m long zero temp to 30m. `
@@ -308,7 +287,7 @@ const determine_basal = function determine_basal(
             rT.rate = 0
             return rT
             // don't use setTempBasal(), as it has logic that allows long zero temps to continue running
-            //return tempBasalFunctions.setTempBasal(0, 30, profile, rT, currenttemp);
+            //return setTempBasal(0, 30, profile, rT, currenttemp);
         } else {
             //do nothing.
             rT.reason += `. Temp ${currenttemp.rate} <= current basal ${basal}U/hr; doing nothing. `
@@ -325,14 +304,9 @@ const determine_basal = function determine_basal(
 
     // if min and max are set, then set target to their average
     let target_bg: number
-    let min_bg = profile.min_bg as number
-    let max_bg = profile.max_bg as number
+    let min_bg = profile.min_bg
+    let max_bg = profile.max_bg
     const high_bg = profile.enableSMB_high_bg_target
-
-    if (min_bg === undefined || max_bg === undefined) {
-        rT.error = 'Error: could not determine target_bg. '
-        return rT
-    }
 
     target_bg = (min_bg + max_bg) / 2
 
@@ -340,19 +314,13 @@ const determine_basal = function determine_basal(
     let sensitivityRatio: number | undefined
     const high_temptarget_raises_sensitivity = profile.exercise_mode || profile.high_temptarget_raises_sensitivity
     const normalTarget = 100 // evaluate high/low temptarget against 100, not scheduled target (which might change)
-    let halfBasalTarget
-    if (profile.half_basal_exercise_target) {
-        halfBasalTarget = profile.half_basal_exercise_target
-    } else {
-        halfBasalTarget = 160 // when temptarget is 160 mg/dL, run 50% basal (120 = 75%; 140 = 60%)
-        // 80 mg/dL with low_temptarget_lowers_sensitivity would give 1.5x basal, but is limited to autosens_max (1.2x by default)
-    }
+
+    // when temptarget is 160 mg/dL, run 50% basal (120 = 75%; 140 = 60%)
+    // 80 mg/dL with low_temptarget_lowers_sensitivity would give 1.5x basal, but is limited to autosens_max (1.2x by default)
+    const halfBasalTarget = profile.half_basal_exercise_target || 160
 
     if (
-        (profile.autosens_max !== undefined &&
-            high_temptarget_raises_sensitivity &&
-            profile.temptargetSet &&
-            target_bg > normalTarget) ||
+        (high_temptarget_raises_sensitivity && profile.temptargetSet && target_bg > normalTarget) ||
         (profile.low_temptarget_lowers_sensitivity && profile.temptargetSet && target_bg < normalTarget)
     ) {
         // w/ target 100, temp target 110 = .89, 120 = 0.8, 140 = 0.67, 160 = .57, and 200 = .44
@@ -435,7 +403,7 @@ const determine_basal = function determine_basal(
     // Adjust ISF based on sensitivityRatio
     const profile_sens = round(profile.sens, 1)
     let sens = profile.sens
-    if (typeof autosens_data !== 'undefined' && autosens_data && sensitivityRatio) {
+    if (autosens_data && sensitivityRatio) {
         sens = profile.sens / sensitivityRatio
         sens = round(sens, 1)
         if (sens !== profile_sens) {
@@ -447,7 +415,7 @@ const determine_basal = function determine_basal(
     }
     console.error('; CR:', carb_ratio)
 
-    const iob_data = Array.isArray(iobArray) ? iobArray[0] : iobArray
+    const iob_data = Array.isArray(iob_ticks) ? iob_ticks[0] : iob_ticks
 
     if (!iob_data) {
         rT.error = 'Error: iob_data undefined. '
@@ -485,7 +453,7 @@ const determine_basal = function determine_basal(
         rT.reason = `Warning: currenttemp rate ${currenttemp.rate} != lastTemp rate ${
             iob_data.lastTemp.rate
         } from pumphistory; canceling temp`
-        return tempBasalFunctions.setTempBasal(0, 0, profile, rT, currenttemp)
+        return setTempBasal(0, 0, profile, rT, currenttemp)
     }
     if (currenttemp && iob_data.lastTemp && currenttemp.duration > 0) {
         //console.error(lastTempAge, round(iob_data.lastTemp.duration,1), round(lastTempAge - iob_data.lastTemp.duration,1));
@@ -495,7 +463,7 @@ const determine_basal = function determine_basal(
                 lastTempEnded
             }m ago; canceling temp`
             //console.error(currenttemp, round(iob_data.lastTemp,1), round(lastTempAge,1));
-            return tempBasalFunctions.setTempBasal(0, 0, profile, rT, currenttemp)
+            return setTempBasal(0, 0, profile, rT, currenttemp)
         }
     }
 
@@ -694,7 +662,7 @@ const determine_basal = function determine_basal(
     let COBpredBG: number | undefined
     let UAMpredBG: number | undefined
     try {
-        ;(Array.isArray(iobArray) ? iobArray : []).forEach(iobTick => {
+        iob_ticks.forEach(iobTick => {
             //console.error(iobTick);
             const predBGI = round(-iobTick.activity * sens * 5, 2)
             const predZTBGI = round(-iobTick.iobWithZeroTemp.activity * sens * 5, 2)
@@ -1076,9 +1044,7 @@ const determine_basal = function determine_basal(
     console.error(
         `naive_eventualBG: ${convert_bg(naive_eventualBG, profile)}, bgUndershoot: ${convert_bg(bgUndershoot, profile)}, zeroTempDuration: ${zeroTempDuration}, zeroTempEffect: ${zeroTempEffect}, carbsReq: ${carbsReq}`
     )
-    if (meal_data.reason == 'Could not parse clock data') {
-        console.error('carbsReq unknown: Could not parse clock data')
-    } else if (
+    if (
         profile.carbsReqThreshold !== undefined &&
         carbsReq >= profile.carbsReqThreshold &&
         minutesAboveThreshold <= 45
@@ -1109,14 +1075,14 @@ const determine_basal = function determine_basal(
         durationReq = round(durationReq / 30) * 30
         // always set a 30-120m zero temp (oref0-pump-loop will let any longer SMB zero temp run)
         durationReq = Math.min(120, Math.max(30, durationReq))
-        return tempBasalFunctions.setTempBasal(0, durationReq, profile, rT, currenttemp)
+        return setTempBasal(0, durationReq, profile, rT, currenttemp)
     }
 
     // if not in LGS mode, cancel temps before the top of the hour to reduce beeping/vibration
     // console.error(profile.skip_neutral_temps, rT.deliverAt.getMinutes());
     if (profile.skip_neutral_temps && rTDeliveredAt.getMinutes() >= 55) {
         rT.reason += `; Canceling temp at ${rTDeliveredAt.getMinutes()}m past the hour. `
-        return tempBasalFunctions.setTempBasal(0, 0, profile, rT, currenttemp)
+        return setTempBasal(0, 0, profile, rT, currenttemp)
     }
 
     if (eventualBG < min_bg) {
@@ -1127,7 +1093,7 @@ const determine_basal = function determine_basal(
             // if naive_eventualBG < 40, set a 30m zero temp (oref0-pump-loop will let any longer SMB zero temp run)
             if (naive_eventualBG < 40) {
                 rT.reason += ', naive_eventualBG < 40. '
-                return tempBasalFunctions.setTempBasal(0, 30, profile, rT, currenttemp)
+                return setTempBasal(0, 30, profile, rT, currenttemp)
             }
             if (glucose_status.delta > minDelta) {
                 rT.reason += `, but Delta ${convert_bg(Number(tick), profile)} > expectedDelta ${convert_bg(
@@ -1142,7 +1108,7 @@ const determine_basal = function determine_basal(
                 return rT
             } else {
                 rT.reason += `; setting current basal of ${basal} as temp. `
-                return tempBasalFunctions.setTempBasal(basal, 30, profile, rT, currenttemp)
+                return setTempBasal(basal, 30, profile, rT, currenttemp)
             }
         }
 
@@ -1170,7 +1136,7 @@ const determine_basal = function determine_basal(
         const minInsulinReq = Math.min(insulinReq, naiveInsulinReq)
         if (insulinScheduled < minInsulinReq - basal * 0.3) {
             rT.reason += `, ${currenttemp.duration}m@${currenttemp.rate.toFixed(2)} is a lot less than needed. `
-            return tempBasalFunctions.setTempBasal(rate, 30, profile, rT, currenttemp)
+            return setTempBasal(rate, 30, profile, rT, currenttemp)
         }
         if (typeof currenttemp.rate !== 'undefined' && currenttemp.duration > 5 && rate >= currenttemp.rate * 0.8) {
             rT.reason += `, temp ${currenttemp.rate} ~< req ${rate}U/hr. `
@@ -1191,12 +1157,12 @@ const determine_basal = function determine_basal(
                 //console.error(durationReq);
                 if (durationReq > 0) {
                     rT.reason += `, setting ${durationReq}m zero temp. `
-                    return tempBasalFunctions.setTempBasal(rate, durationReq, profile, rT, currenttemp)
+                    return setTempBasal(rate, durationReq, profile, rT, currenttemp)
                 }
             } else {
                 rT.reason += `, setting ${rate}U/hr. `
             }
-            return tempBasalFunctions.setTempBasal(rate, 30, profile, rT, currenttemp)
+            return setTempBasal(rate, 30, profile, rT, currenttemp)
         }
     }
 
@@ -1220,7 +1186,7 @@ const determine_basal = function determine_basal(
                 return rT
             } else {
                 rT.reason += `; setting current basal of ${basal} as temp. `
-                return tempBasalFunctions.setTempBasal(basal, 30, profile, rT, currenttemp)
+                return setTempBasal(basal, 30, profile, rT, currenttemp)
             }
         }
     }
@@ -1234,7 +1200,7 @@ const determine_basal = function determine_basal(
                 return rT
             } else {
                 rT.reason += `; setting current basal of ${basal} as temp. `
-                return tempBasalFunctions.setTempBasal(basal, 30, profile, rT, currenttemp)
+                return setTempBasal(basal, 30, profile, rT, currenttemp)
             }
         }
     }
@@ -1251,7 +1217,7 @@ const determine_basal = function determine_basal(
             return rT
         } else {
             rT.reason += `; setting current basal of ${basal} as temp. `
-            return tempBasalFunctions.setTempBasal(basal, 30, profile, rT, currenttemp)
+            return setTempBasal(basal, 30, profile, rT, currenttemp)
         }
     } else {
         // otherwise, calculate 30m high-temp required to get projected BG down to target
@@ -1376,7 +1342,7 @@ const determine_basal = function determine_basal(
             }
         }
 
-        const maxSafeBasal = tempBasalFunctions.getMaxSafeBasal(profile)
+        const maxSafeBasal = getMaxSafeBasal(profile)
 
         if (rate > maxSafeBasal) {
             rT.reason += `adj. req. rate: ${rate} to maxSafeBasal: ${maxSafeBasal}, `
@@ -1389,13 +1355,13 @@ const determine_basal = function determine_basal(
             rT.reason += `${currenttemp.duration}m@${currenttemp.rate.toFixed(
                 2
             )} > 2 * insulinReq. Setting temp basal of ${rate}U/hr. `
-            return tempBasalFunctions.setTempBasal(rate, 30, profile, rT, currenttemp)
+            return setTempBasal(rate, 30, profile, rT, currenttemp)
         }
 
         if (typeof currenttemp.duration === 'undefined' || currenttemp.duration === 0) {
             // no temp is set
             rT.reason += `no temp, setting ${rate}U/hr. `
-            return tempBasalFunctions.setTempBasal(rate, 30, profile, rT, currenttemp)
+            return setTempBasal(rate, 30, profile, rT, currenttemp)
         }
 
         if (currenttemp.duration > 5 && round_basal(rate, profile) <= round_basal(currenttemp.rate, profile)) {
@@ -1406,9 +1372,8 @@ const determine_basal = function determine_basal(
 
         // required temp > existing temp basal
         rT.reason += `temp ${currenttemp.rate}<${rate}U/hr. `
-        return tempBasalFunctions.setTempBasal(rate, 30, profile, rT, currenttemp)
+        return setTempBasal(rate, 30, profile, rT, currenttemp)
     }
 }
 
-export default determine_basal
-module.exports = determine_basal
+export default module.exports = generate

@@ -6,5 +6,3 @@ export default function getTime(minutes: number) {
 
     return baseTime.getTime() + minutes * 60 * 1000
 }
-
-exports = module.exports = getTime

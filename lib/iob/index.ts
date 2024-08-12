@@ -1,8 +1,9 @@
+import { Schema } from '@effect/schema'
 import { tz } from '../date'
+import { Input } from './Input'
 import type { InsulinTreatment } from './InsulinTreatment'
 import { isBasalTreatment, isBolusTreatment } from './InsulinTreatment'
-import find_insulin from './history'
-import type { Input } from './history'
+import { findInsulin } from './history'
 import sum from './total'
 
 interface IOB {
@@ -24,13 +25,13 @@ interface IOBItem extends IOB {
     }
 }
 
-export default function generate(inputs: Input, currentIOBOnly: boolean = false, inputTreatments?: InsulinTreatment[]) {
+export const getIob = (inputs: Input, currentIOBOnly: boolean = false, inputTreatments?: InsulinTreatment[]) => {
     let treatmentsWithZeroTemp: InsulinTreatment[] = []
     let treatments = inputTreatments
     if (!treatments) {
-        treatments = find_insulin(inputs)
+        treatments = findInsulin(inputs)
         // calculate IOB based on continuous future zero temping as well
-        treatmentsWithZeroTemp = find_insulin(inputs, 240)
+        treatmentsWithZeroTemp = findInsulin(inputs, 240)
     }
     //console.error(treatments.length, treatmentsWithZeroTemp.length);
     //console.error(treatments[treatments.length-1], treatmentsWithZeroTemp[treatmentsWithZeroTemp.length-1])
@@ -111,4 +112,7 @@ export default function generate(inputs: Input, currentIOBOnly: boolean = false,
     return iobArray
 }
 
-exports = module.exports = generate
+export default function generate(input: unknown) {
+    const inputs = Schema.decodeUnknownSync(Input)(input)
+    return getIob(inputs)
+}

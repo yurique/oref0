@@ -1,7 +1,9 @@
+import * as A from 'effect/Array'
 import type { FinalResult } from '../bin/utils'
 import { console_error } from '../bin/utils'
 import getTime from '../medtronic-clock'
 import type { Preferences } from '../types/Preferences'
+import * as TempTarget from '../types/TempTarget'
 
 interface BgTarget {
     offset: number
@@ -48,9 +50,7 @@ export function lookup(final_result: FinalResult, preferences: Preferences): BgT
     }
 
     // sort tempTargets by date so we can process most recent first
-    temptargets_data = [...temptargets_data].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
+    temptargets_data = A.sort(temptargets_data, TempTarget.Order)
 
     for (let i = 0; i < temptargets_data.length; i++) {
         const start = new Date(temptargets_data[i].created_at)
@@ -101,8 +101,3 @@ export function bound_target_range(target: BgTarget) {
         min_bg: Math.min(200, Math.max(80, target.low)),
     }
 }
-
-bgTargetsLookup.bgTargetsLookup = bgTargetsLookup // does use log
-bgTargetsLookup.lookup = lookup // not used outside
-bgTargetsLookup.bound_target_range = bound_target_range // does not log
-exports = module.exports = bgTargetsLookup

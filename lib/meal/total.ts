@@ -1,3 +1,4 @@
+import * as A from 'effect/Array'
 import { tz } from '../date'
 import type { DetectCOBInput } from '../determine-basal/cob'
 import detectCarbAbsorption from '../determine-basal/cob'
@@ -6,35 +7,20 @@ import type { GlucoseEntry } from '../types/GlucoseEntry'
 import type { NightscoutTreatment } from '../types/NightscoutTreatment'
 import type { Profile } from '../types/Profile'
 import type { PumpHistoryEvent } from '../types/PumpHistoryEvent'
-import type { MealTreatment } from './MealTreatment'
+import * as MealTreatment from './MealTreatment'
+import type { RecentCarbs } from './RecentCarbs'
 
 export interface Options {
-    treatments?: Array<MealTreatment>
-    pumphistory: Array<NightscoutTreatment | PumpHistoryEvent>
+    treatments?: ReadonlyArray<MealTreatment.MealTreatment>
+    pumphistory: ReadonlyArray<NightscoutTreatment | PumpHistoryEvent>
     profile: Profile
-    basalprofile?: BasalSchedule[]
-    glucose?: GlucoseEntry[]
+    basalprofile?: ReadonlyArray<BasalSchedule>
+    glucose?: ReadonlyArray<GlucoseEntry>
     clock: string
 }
 
-export interface RecentCarbs {
-    carbs: number
-    nsCarbs: number
-    bwCarbs: number
-    journalCarbs: number
-    mealCOB: number
-    currentDeviation: number
-    maxDeviation: number
-    minDeviation: number
-    slopeFromMaxDeviation: number
-    slopeFromMinDeviation: number
-    allDeviations: number[]
-    lastCarbTime: number
-    bwFound: boolean
-}
-
-export default function recentCarbs(opts: Options, time: Date): Partial<RecentCarbs> {
-    const treatments = opts.treatments
+export default function recentCarbs(opts: Options, time: Date): RecentCarbs {
+    let treatments = opts.treatments
     const profile_data = opts.profile
     const glucose_data = opts.glucose
     let carbs = 0
@@ -46,7 +32,21 @@ export default function recentCarbs(opts: Options, time: Date): Partial<RecentCa
     let lastCarbTime = 0
 
     if (!treatments) {
-        return {}
+        return {
+            carbs: Math.round(carbs * 1000) / 1000,
+            nsCarbs: Math.round(nsCarbs * 1000) / 1000,
+            bwCarbs: Math.round(bwCarbs * 1000) / 1000,
+            journalCarbs: Math.round(journalCarbs * 1000) / 1000,
+            mealCOB: 0,
+            currentDeviation: 0,
+            maxDeviation: 0,
+            minDeviation: 0,
+            slopeFromMaxDeviation: 0,
+            slopeFromMinDeviation: 0,
+            allDeviations: [],
+            lastCarbTime: 0,
+            bwFound: false,
+        }
     }
 
     //console.error(glucose_data);
@@ -63,12 +63,7 @@ export default function recentCarbs(opts: Options, time: Date): Partial<RecentCa
     let mealCOB = 0
 
     // this sorts the treatments collection in order.
-    treatments.sort((a, b) => {
-        const aDate = new Date(a.timestamp)
-        const bDate = new Date(b.timestamp)
-        //console.error(aDate);
-        return bDate.getTime() - aDate.getTime()
-    })
+    treatments = A.sort(treatments, MealTreatment.Order)
 
     let carbsToRemove = 0
     let nsCarbsToRemove = 0
@@ -179,5 +174,3 @@ export default function recentCarbs(opts: Options, time: Date): Partial<RecentCa
         bwFound: bwFound,
     }
 }
-
-exports = module.exports = recentCarbs

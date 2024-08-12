@@ -123,5 +123,3 @@ export default function iobTotal(opts: Options, time: Date) {
         time: time,
     }
 }
-
-exports = module.exports = iobTotal

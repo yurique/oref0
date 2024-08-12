@@ -14,8 +14,6 @@
 //     real readDate  -- milliseconds since Epoch
 //   },...
 
-import { updateGlucoseStats } from './calc-glucose-stats'
-
 // ]
 const calcNoise = (sgvArr: any) => {
     let noise = 0
@@ -242,12 +240,4 @@ export function NSNoiseString(nsNoise: any) {
         default:
             return 'Unknown'
     }
-}
-
-exports = module.exports = {
-    updateGlucoseStats,
-    calcSensorNoise,
-    calcTrend,
-    calcNSNoise,
-    NSNoiseString,
 }

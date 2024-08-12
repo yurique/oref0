@@ -9,10 +9,10 @@ export function basalLookup(schedules: readonly BasalSchedule.BasalSchedule[], n
     const basalprofile_data = sort(BasalSchedule.Order)(schedules)
 
     let basalRate = basalprofile_data[basalprofile_data.length - 1].rate
+    // @todo: why can't be zero? I think a basal rate of 0 should be possibile
     if (basalRate === 0) {
         // TODO - shared node - move this print to shared object.
-        console.error('ERROR: bad basal schedule', schedules)
-        return
+        throw new Error('ERROR: bad basal schedule')
     }
     const nowMinutes = nowDate.getHours() * 60 + nowDate.getMinutes()
 

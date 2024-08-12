@@ -146,5 +146,3 @@ function iobCalcExponential(treatment: BolusTreatment, minsAgo: number, dia: num
         iobContrib: iobContrib,
     }
 }
-
-exports = module.exports = iobCalc

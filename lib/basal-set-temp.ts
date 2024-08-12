@@ -83,8 +83,3 @@ export function setTempBasal(rate: number, duration: number, profile: Profile, r
         return rT
     }
 }
-
-module.exports = {
-    getMaxSafeBasal,
-    setTempBasal,
-}

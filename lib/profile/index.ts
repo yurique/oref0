@@ -1,5 +1,6 @@
 import type { FinalResult } from '../bin/utils'
 import { console_error } from '../bin/utils'
+import type { Preferences } from '../types/Preferences'
 import { maxDailyBasal, basalLookup, maxBasalLookup } from './basal'
 //import { carbRatioLookup } from './carbs'
 import carbRatioLookup from './carbs'
@@ -99,7 +100,7 @@ export function displayedDefaults(final_result: FinalResult) {
     return profile
 }
 
-export default function generate(final_result: FinalResult, inputs: any, opts: any) {
+export default function generate(final_result: FinalResult, inputs: Preferences, opts: any) {
     const profile = opts && opts.type ? opts : defaults()
     const preferences = inputs
 
@@ -107,7 +108,7 @@ export default function generate(final_result: FinalResult, inputs: any, opts: a
     // and apply if applicable
     for (const pref in profile) {
         if (Object.prototype.hasOwnProperty.call(preferences, pref)) {
-            profile[pref] = preferences[pref]
+            profile[pref] = (preferences as any)[pref]
         }
     }
 
@@ -124,7 +125,13 @@ export default function generate(final_result: FinalResult, inputs: any, opts: a
     }
     profile.skip_neutral_temps = preferences.skip_neutral_temps
 
-    profile.current_basal = basalLookup(preferences.basals)
+    // try-catch just to fix test. Basal should be validated from the beginning
+    try {
+        profile.current_basal = basalLookup(preferences.basals)
+    } catch (e) {
+        console_error(final_result, String(e))
+        return -1
+    }
     if (!profile.current_basal) {
         console.error('ERROR: bad basal schedule', profile.current_basal)
         return -1
@@ -136,6 +143,7 @@ export default function generate(final_result: FinalResult, inputs: any, opts: a
 
     profile.max_daily_basal = maxDailyBasal(preferences)
     profile.max_basal = maxBasalLookup(preferences)
+
     if (profile.current_basal === 0) {
         console_error(final_result, 'current_basal of', profile.current_basal, 'is not supported')
         return -1
@@ -180,7 +188,3 @@ export default function generate(final_result: FinalResult, inputs: any, opts: a
 
     return profile
 }
-
-generate.defaults = defaults
-generate.displayedDefaults = displayedDefaults
-exports = module.exports = generate

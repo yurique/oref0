@@ -1,16 +1,18 @@
+import * as A from 'effect/Array'
 import { tz } from '../date'
-import get_iob from '../iob'
-import find_insulin from '../iob/history'
-import type { CarbEntry } from '../meal/history'
+import { getIob } from '../iob'
+import { findInsulin } from '../iob/history'
+import * as MealTreatment from '../meal/MealTreatment'
 import find_meals from '../meal/history'
 import percentile from '../percentile'
 import { basalLookup } from '../profile/basal'
 import { isfLookup } from '../profile/isf'
 import type { BasalSchedule } from '../types/BasalSchedule'
+import type { CarbEntry } from '../types/CarbEntry'
 import type { GlucoseEntry } from '../types/GlucoseEntry'
-import { getDate } from '../types/GlucoseEntry'
+import { getDate, getGlucose } from '../types/GlucoseEntry'
 import type { ISFSensitivity } from '../types/ISFSensitivity'
-import type { TempTarget } from '../types/TempTarget'
+import * as TempTarget from '../types/TempTarget'
 
 interface Inputs {
     glucose_data: GlucoseEntry[]
@@ -18,7 +20,7 @@ interface Inputs {
     basalprofile: BasalSchedule[]
     retrospective?: boolean
     carbs: CarbEntry[]
-    temptargets: TempTarget[]
+    temptargets: TempTarget.TempTarget[]
     deviations?: number
 }
 
@@ -28,7 +30,7 @@ function detectSensitivity(inputs: Inputs) {
         //Support the NS sgv field to avoid having to convert in a custom way
         return {
             ...obj,
-            glucose: obj.glucose || obj.sgv!,
+            glucose: getGlucose(obj),
         }
     })
     //console.error(glucose_data[0]);
@@ -64,7 +66,7 @@ function detectSensitivity(inputs: Inputs) {
     }
 
     // get treatments from pumphistory once, not every time we get_iob()
-    const treatments = find_insulin(inputs.iob_inputs)
+    const treatments = findInsulin(inputs.iob_inputs)
 
     const mealinputs = {
         history: inputs.iob_inputs.history,
@@ -73,13 +75,7 @@ function detectSensitivity(inputs: Inputs) {
         glucose: inputs.glucose_data,
         //, prepped_glucose: prepped_glucose_data
     }
-    const meals = find_meals(mealinputs)
-    meals.sort((a, b) => {
-        const aDate = new Date(tz(a.timestamp))
-        const bDate = new Date(tz(b.timestamp))
-        //console.error(aDate);
-        return bDate.getTime() - aDate.getTime()
-    })
+    const meals = A.sort(find_meals(mealinputs), MealTreatment.Order)
     //console.error(meals);
 
     const avgDeltas = []
@@ -216,7 +212,7 @@ function detectSensitivity(inputs: Inputs) {
         iob_inputs.profile.temptargetSet = false
         //console.log(JSON.stringify(iob_inputs.profile));
         //console.error("Before: ", new Date().getTime());
-        const iob = get_iob(iob_inputs, true, treatments)[0]
+        const iob = getIob(iob_inputs, true, treatments)[0]
         //console.error("After: ", new Date().getTime());
         //console.log(JSON.stringify(iob));
 
@@ -482,17 +478,10 @@ function detectSensitivity(inputs: Inputs) {
         newisf: newisf,
     }
 }
-module.exports = detectSensitivity
 
-function tempTargetRunning(temptargets_data: TempTarget[], time: Date) {
+function tempTargetRunning(temptargets: TempTarget.TempTarget[], time: Date) {
     // sort tempTargets by date so we can process most recent first
-    try {
-        temptargets_data.sort((a, b) => {
-            return new Date(a.created_at).getTime() + new Date(b.created_at).getTime()
-        })
-    } catch (_e) {
-        //console.error("Could not sort temptargets_data.  Optional feature temporary targets disabled.");
-    }
+    const temptargets_data = A.sort(temptargets, TempTarget.Order)
     //console.error(temptargets_data);
     //console.error(time);
     for (let i = 0; i < temptargets_data.length; i++) {
@@ -514,3 +503,5 @@ function tempTargetRunning(temptargets_data: TempTarget[], time: Date) {
 
     return 0
 }
+
+export default exports.module = detectSensitivity

@@ -1,6 +1,6 @@
 import type { Profile } from './types/Profile'
 
-const round_basal = (basal: number, profile?: Profile) => {
+export const round_basal = (basal: number, profile?: Profile) => {
     /* x23 and x54 pumps change basal increment depending on how much basal is being delivered:
             0.025u for 0.025 < x < 0.975
             0.05u for 1 < x < 9.95
@@ -28,4 +28,3 @@ const round_basal = (basal: number, profile?: Profile) => {
 }
 
 export default round_basal
-exports = module.exports = round_basal

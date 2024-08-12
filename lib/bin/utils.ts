@@ -23,29 +23,22 @@ function console_both(final_result: string, theArgs: unknown[]) {
     return newResult
 }
 
-export const console_error = function console_error(final_result: FinalResult, ...theArgs: unknown[]) {
+export const console_error = (final_result: FinalResult, ...theArgs: unknown[]) => {
     final_result.err = console_both(final_result.err, theArgs)
 }
 
-export const console_log = function console_log(final_result: FinalResult, ...theArgs: unknown[]) {
+export const console_log = (final_result: FinalResult, ...theArgs: unknown[]) => {
     final_result.stdout = console_both(final_result.stdout, theArgs)
 }
 
-export const process_exit = function process_exit(final_result: FinalResult, ret: number) {
+export const process_exit = (final_result: FinalResult, ret: number) => {
     final_result.return_val = ret
 }
 
-export const initFinalResults = function initFinalResults(): FinalResult {
+export const initFinalResults = (): FinalResult => {
     return {
         stdout: '',
         err: '',
         return_val: 0,
     }
-}
-
-module.exports = {
-    console_log: console_log,
-    console_error: console_error,
-    process_exit: process_exit,
-    initFinalResults: initFinalResults,
 }

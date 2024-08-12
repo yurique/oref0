@@ -93,7 +93,7 @@ describe('Profile', function ( ) {
     });
 
     it('should error with a current basal of 0', function () {
-        var profile = require('../lib/profile')(initFinalResults(), _.merge({}, baseInputs, {basals: [{minutes: 0, rate: 0}]}));
+        var profile = require('../lib/profile')(initFinalResults(), _.merge({}, baseInputs, { basals: [{ minutes: 0, rate: 0 }] }));
         profile.should.equal(-1);
     });
 
