@@ -6,8 +6,8 @@ import { GlucoseEntry } from '../types/GlucoseEntry'
 import { NightscoutTreatment } from '../types/NightscoutTreatment'
 import { Profile } from '../types/Profile'
 import { PumpHistoryEvent } from '../types/PumpHistoryEvent'
-import find_meals from './history'
-import sum from './total'
+import { findMeals } from './history'
+import { totalRecentCarbs as sum } from './total'
 
 const Input = Schema.Struct({
     history: Schema.Array(Schema.Union(NightscoutTreatment, PumpHistoryEvent)),
@@ -18,9 +18,9 @@ const Input = Schema.Struct({
     clock: Schema.String,
 })
 
-function generate(input: unknown) {
+export function generate(input: unknown) {
     const inputs = Schema.decodeUnknownSync(Input)(input)
-    const treatments = find_meals(inputs)
+    const treatments = findMeals(inputs)
 
     const opts = {
         treatments: treatments,
@@ -36,4 +36,4 @@ function generate(input: unknown) {
     return /* meal_data */ sum(opts, clock)
 }
 
-export default module.exports = generate
+export default generate

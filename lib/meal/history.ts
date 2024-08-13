@@ -30,7 +30,7 @@ const createMeal = (timestamp: string, partial: Partial<MealTreatment>): TempMea
     hasCarbs: partial.carbs !== undefined,
 })
 
-export default function findMealInputs(inputs: Input): MealTreatment[] {
+export function findMeals(inputs: Input): MealTreatment[] {
     const pumpHistory = inputs.history
     const carbHistory = inputs.carbs
     const mealInputs: TempMealTreatment[] = []
@@ -145,3 +145,5 @@ export default function findMealInputs(inputs: Input): MealTreatment[] {
     })
     return sort(dedupeWith<MealTreatment>(mealInputs, eq), Order)
 }
+
+export default findMeals

@@ -1,9 +1,10 @@
 import type { FinalResult } from '../bin/utils'
 import { console_error } from '../bin/utils'
+import type { BasalSchedule } from '../types/BasalSchedule'
 import type { Preferences } from '../types/Preferences'
 import { maxDailyBasal, basalLookup, maxBasalLookup } from './basal'
 //import { carbRatioLookup } from './carbs'
-import carbRatioLookup from './carbs'
+import { carbRatioLookup } from './carbs'
 import { isfLookup } from './isf'
 import * as targets from './targets'
 
@@ -100,7 +101,7 @@ export function displayedDefaults(final_result: FinalResult) {
     return profile
 }
 
-export default function generate(final_result: FinalResult, inputs: Preferences, opts: any) {
+function generate(final_result: FinalResult, inputs: Preferences, opts?: any) {
     const profile = opts && opts.type ? opts : defaults()
     const preferences = inputs
 
@@ -136,9 +137,9 @@ export default function generate(final_result: FinalResult, inputs: Preferences,
         console.error('ERROR: bad basal schedule', profile.current_basal)
         return -1
     }
-    profile.basalprofile = preferences.basals.map((basalentry: any) => ({
+    profile.basalprofile = preferences.basals.map((basalentry: BasalSchedule) => ({
         ...basalentry,
-        rate: Math.round(basalentry.rate * 100) / 100,
+        rate: Math.round(basalentry.rate * 1000) / 1000,
     }))
 
     profile.max_daily_basal = maxDailyBasal(preferences)
@@ -188,3 +189,5 @@ export default function generate(final_result: FinalResult, inputs: Preferences,
 
     return profile
 }
+
+export default generate

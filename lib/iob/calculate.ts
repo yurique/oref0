@@ -7,7 +7,7 @@ interface IobCalcResult {
     iobContrib?: number
 }
 
-export default function iobCalc(
+export function calculate(
     treatment: InsulinTreatment,
     time: Date | undefined,
     curve: 'bilinear' | string,
@@ -146,3 +146,5 @@ function iobCalcExponential(treatment: BolusTreatment, minsAgo: number, dia: num
         iobContrib: iobContrib,
     }
 }
+
+export default calculate

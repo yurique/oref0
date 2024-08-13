@@ -1,4 +1,4 @@
-import { pipe } from 'effect'
+import { flow, pipe } from 'effect'
 import * as A from 'effect/Array'
 import * as Option from 'effect/Option'
 import * as O from 'effect/Order'
@@ -12,7 +12,7 @@ import * as GlucoseEntry from '../types/GlucoseEntry'
 import type { ISFSensitivity } from '../types/ISFSensitivity'
 import type { NightscoutTreatment } from '../types/NightscoutTreatment'
 import type { Profile } from '../types/Profile'
-import dosed from './dosed'
+import { insulinDosed } from './dosed'
 
 interface Input {
     treatments: ReadonlyArray<MealTreatment>
@@ -26,6 +26,7 @@ interface Input {
 
 type CSFUAMGlucoseData = GlucoseEntry.GlucoseEntry & {
     glucose: number
+    date: number
     dateString: string
     avgDelta: number
     BGI: number
@@ -35,7 +36,7 @@ type CSFUAMGlucoseData = GlucoseEntry.GlucoseEntry & {
     mealAbsorption?: string | undefined
 }
 
-function categorizeBGDatums(opts: Input) {
+export function categorizeBGDatums(opts: Input) {
     // this sorts the treatments collection in order.
     let treatments = A.sort(
         opts.treatments,
@@ -53,14 +54,13 @@ function categorizeBGDatums(opts: Input) {
     }
 
     const glucoseData = pipe(
-        A.filterMap(opts.glucose || [], a =>
-            pipe(
-                Option.some({
-                    ...a,
-                    glucose: GlucoseEntry.getGlucose(a),
-                    dateString: GlucoseEntry.getDate(a).toISOString(),
-                }),
-                Option.filter(b => b.glucose >= 39)
+        opts.glucose || [],
+        A.filterMap(
+            flow(
+                GlucoseEntry.setGlucoseField,
+                GlucoseEntry.setDateFields,
+                GlucoseEntry.filterWithGlucose,
+                Option.filter(({ glucose }) => glucose > 39)
             )
         ),
         A.sort(O.reverse(GlucoseEntry.Order))
@@ -77,9 +77,7 @@ function categorizeBGDatums(opts: Input) {
     const UAMGlucoseData: CSFUAMGlucoseData[] = []
     let CRData = []
 
-    const bucketedData: Array<GlucoseEntry.GlucoseEntry & { glucose: number; dateString: string }> = []
-    // why this? just to handle dates to strings?
-    bucketedData[0] = glucoseData[0]
+    const bucketedData = [glucoseData[0]]
     let j = 0
     let k = 0 // index of first value used by bucket
     //for loop to validate and bucket the data
@@ -420,7 +418,7 @@ function categorizeBGDatums(opts: Input) {
     })
     CRData = CRData.map(CRDatum => ({
         ...CRDatum,
-        CRInsulin: dosed({
+        CRInsulin: insulinDosed({
             treatments: insulinTreatments,
             start: CRDatum.CRInitialCarbTime!,
             end: CRDatum.CREndTime,

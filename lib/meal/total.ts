@@ -1,7 +1,7 @@
 import * as A from 'effect/Array'
 import { tz } from '../date'
 import type { DetectCOBInput } from '../determine-basal/cob'
-import detectCarbAbsorption from '../determine-basal/cob'
+import { detectCarbAbsorption as detectCarbAbsorption } from '../determine-basal/cob'
 import type { BasalSchedule } from '../types/BasalSchedule'
 import type { GlucoseEntry } from '../types/GlucoseEntry'
 import type { NightscoutTreatment } from '../types/NightscoutTreatment'
@@ -19,7 +19,7 @@ export interface Options {
     clock: string
 }
 
-export default function recentCarbs(opts: Options, time: Date): RecentCarbs {
+export function totalRecentCarbs(opts: Options, time: Date): RecentCarbs {
     let treatments = opts.treatments
     const profile_data = opts.profile
     const glucose_data = opts.glucose
@@ -174,3 +174,5 @@ export default function recentCarbs(opts: Options, time: Date): RecentCarbs {
         bwFound: bwFound,
     }
 }
+
+export default totalRecentCarbs

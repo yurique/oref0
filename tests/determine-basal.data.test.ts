@@ -12,12 +12,12 @@ import determine_basal from '../lib/determine-basal/determine-basal';
 function generate(iob, currenttemp, glucose, profile, autosens = null, meal = null, microbolusAllowed = true, reservoir = null, clock, dynamicVariables) {
     // Needs to be updated here due to time format).
     clock = new Date(clock)
-    
+
     var autosens_data = null;
     if (autosens) {
         autosens_data = autosens;
     }
-    
+
     var reservoir_data = null;
     if (reservoir) {
         reservoir_data = reservoir;
@@ -27,7 +27,7 @@ function generate(iob, currenttemp, glucose, profile, autosens = null, meal = nu
     if (meal) {
         meal_data = meal;
     }
-    
+
     // Overrides
     if (dynamicVariables && dynamicVariables.useOverride) {
         const factor = dynamicVariables.overridePercentage / 100;
@@ -60,31 +60,31 @@ function generate(iob, currenttemp, glucose, profile, autosens = null, meal = nu
             profile.max_bg = profile.min_bg;
             console.log("Override Active, new glucose target: " + dynamicVariables.overrideTarget);
         }
-        
+
             //SMBs
         if (disableSMBs(dynamicVariables)) {
             microbolusAllowed = false;
             console.error("SMBs disabled by Override");
         }
-        
+
         // Max IOB
         if (dynamicVariables.advancedSettings && dynamicVariables.overrideMaxIOB) {
             profile.max_iob = dynamicVariables.maxIOB;
             console.log("Override Active, new maxIOB: " + profile.max_iob);
         }
     }
-    
+
     // Half Basal Target
     if (dynamicVariables.isEnabled) {
         profile.half_basal_exercise_target = dynamicVariables.hbt;
         console.log("Temp Target active, half_basal_exercise_target: " + dynamicVariables.hbt);
     }
-    
+
     // Dynamic ISF
     if (profile.useNewFormula) {
         dynisf(profile, autosens_data, dynamicVariables, glucose);
     }
-    
+
     // If ignoring flat CGM errors, circumvent also the Oref0 error
     if (dynamicVariables.disableCGMError) {
         if (glucose.length > 1 && Math.abs(glucose[0].glucose - glucose[1].glucose) < 5) {
@@ -95,13 +95,25 @@ function generate(iob, currenttemp, glucose, profile, autosens = null, meal = nu
         }
     }
     var glucose_status = getLastGlucose(glucose);
-    
+
     // In case Basal Rate been set in midleware
     if (profile.set_basal && profile.basal_rate) {
         console.log("Basal Rate set by middleware to " + profile.basal_rate + " U/h.");
     }
-    
-    return determine_basal(glucose_status, currenttemp, iob, profile, autosens_data, meal_data, basalFunctions, microbolusAllowed, reservoir_data, clock);
+
+    const input = {
+        glucose: glucose_status,
+        currenttemp: currenttemp,
+        iobTicks: iob,
+        profile: profile,
+        autosens: autosens_data,
+        meal: meal_data,
+        microBolusAllowed: microbolusAllowed,
+        reservoir: reservoir_data,
+        currentTime: clock ? new Date(clock) : undefined,
+    }
+
+    return determine_basal(input);
 }
 
 // The Dynamic ISF layer
@@ -113,9 +125,9 @@ function dynisf(profile, autosens_data, dynamicVariables, glucose) {
     if (profile.highTemptargetRaisesSensitivity || profile.exerciseMode || dynamicVariables.isEnabled) {
         exerciseSetting = true;
     }
-        
+
     const target = profile.min_bg;
-        
+
     // Turn dynISF off when using a temp target >= 118 (6.5 mol/l) and if an exercise setting is enabled.
     if (target >= 118 && exerciseSetting) {
         //dynISFenabled = false;
@@ -148,7 +160,7 @@ function dynisf(profile, autosens_data, dynamicVariables, glucose) {
         insulinPA = 50;
         break;
     }
-        
+
     if (ucpk) {
         insulinFactor = 120 - ipt;
         console.log("Custom insulinpeakTime set to: " + ipt + ", " + "insulinFactor: " + insulinFactor);
@@ -173,13 +185,13 @@ function dynisf(profile, autosens_data, dynamicVariables, glucose) {
 
     // Account for TDD of insulin. Compare last 2 hours with total data (up to 10 days)
     var tdd_factor = weighted_average / average14; // weighted average TDD / total data average TDD
-    
+
     const enable_sigmoid = profile.sigmoid;
     var newRatio = 1;
 
     const sensitivity = profile.sens;
     const adjustmentFactor = profile.adjustmentFactor;
-    
+
     var BG = 100;
         if (glucose.length > 0) {
         BG = glucose[0].glucose;

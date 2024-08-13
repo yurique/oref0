@@ -14,7 +14,7 @@ export const ISFProfile = Schema.Struct({
 
 export type ISFProfile = typeof ISFProfile.Type
 
-export const ProfileDefaults = Schema.Struct({
+export const ProfileDefaults = /*#__PURE__*/ Schema.Struct({
     max_iob: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
         nullable: true,
         default: () => 0,
@@ -151,12 +151,12 @@ export interface ProfileDefaults extends Schema.Schema.Type<typeof ProfileDefaul
 export const Profile = Schema.Struct({
     ...ProfileDefaults.fields,
     basalprofile: Schema.Array(BasalSchedule),
+    current_basal: Schema.Number.pipe(Schema.greaterThan(0)),
     sens: Schema.Number.pipe(Schema.greaterThanOrEqualTo(5)),
     carb_ratio: Schema.optional(Schema.Number),
     carb_ratios: Schema.optional(CarbRatios),
     out_units: Schema.optional(GlucoseUnit),
     dia: Schema.Number.pipe(Schema.greaterThan(1)),
-    current_basal: Schema.Number.pipe(Schema.greaterThan(0)),
     max_daily_basal: Schema.Number.pipe(Schema.greaterThan(0)),
     max_basal: Schema.optional(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0.1))),
     min_bg: Schema.Number.pipe(Schema.greaterThanOrEqualTo(0)),

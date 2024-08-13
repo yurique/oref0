@@ -1,7 +1,7 @@
 import * as A from 'effect/Array'
 import type { FinalResult } from '../bin/utils'
 import { console_error } from '../bin/utils'
-import getTime from '../medtronic-clock'
+import { getTime } from '../medtronic-clock'
 import type { Preferences } from '../types/Preferences'
 import * as TempTarget from '../types/TempTarget'
 

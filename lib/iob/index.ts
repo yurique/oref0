@@ -4,7 +4,7 @@ import { Input } from './Input'
 import type { InsulinTreatment } from './InsulinTreatment'
 import { isBasalTreatment, isBolusTreatment } from './InsulinTreatment'
 import { findInsulin } from './history'
-import sum from './total'
+import { iobTotal as sum } from './total'
 
 interface IOB {
     iob: number
@@ -33,6 +33,7 @@ export const getIob = (inputs: Input, currentIOBOnly: boolean = false, inputTrea
         // calculate IOB based on continuous future zero temping as well
         treatmentsWithZeroTemp = findInsulin(inputs, 240)
     }
+
     //console.error(treatments.length, treatmentsWithZeroTemp.length);
     //console.error(treatments[treatments.length-1], treatmentsWithZeroTemp[treatmentsWithZeroTemp.length-1])
 
@@ -63,6 +64,7 @@ export const getIob = (inputs: Input, currentIOBOnly: boolean = false, inputTrea
         date: new Date(0).getTime(), //clock.getTime());
         duration: 0,
     }
+
     //console.error(treatments[treatments.length-1]);
     treatments.forEach(treatment => {
         if (isBolusTreatment(treatment) && treatment.insulin > 0) {
@@ -73,8 +75,10 @@ export const getIob = (inputs: Input, currentIOBOnly: boolean = false, inputTrea
             //console.error(treatment.insulin,treatment.started_at,lastBolusTime);
         } else if (isBasalTreatment(treatment) && treatment.duration > 0) {
             if (treatment.date > lastTemp.date) {
-                lastTemp = treatment
-                lastTemp.duration = Math.round(lastTemp.duration * 100) / 100
+                lastTemp = {
+                    ...treatment,
+                    duration: Math.round(treatment.duration * 100) / 100,
+                }
             }
 
             //console.error(treatment.rate, treatment.duration, treatment.started_at,lastTemp.started_at)
@@ -106,6 +110,7 @@ export const getIob = (inputs: Input, currentIOBOnly: boolean = false, inputTrea
         //console.error(iobArray.length-1, iobArray[iobArray.length-1]);
         iobArray[iobArray.length - 1].iobWithZeroTemp = iobWithZeroTemp
     }
+
     //console.error(lastBolusTime);
     iobArray[0].lastBolusTime = lastBolusTime
     iobArray[0].lastTemp = lastTemp
@@ -113,6 +118,6 @@ export const getIob = (inputs: Input, currentIOBOnly: boolean = false, inputTrea
 }
 
 export default function generate(input: unknown) {
-    const inputs = Schema.decodeUnknownSync(Input)(input)
+    const inputs = Schema.decodeUnknownSync(Input)(input, { errors: 'all' })
     return getIob(inputs)
 }

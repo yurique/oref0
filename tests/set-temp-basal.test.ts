@@ -1,10 +1,9 @@
-'use strict';
 
 require('should');
+import * as tempBasalFunctions from '../lib/basal-set-temp'
 
 
 describe('tempBasalFunctions.setTempBasal', function ( ) {
-    var tempBasalFunctions = require('../lib/basal-set-temp');
 
    //function tempBasalFunctions.setTempBasal(rate, duration, profile, requestedTemp)
 
@@ -57,7 +56,7 @@ describe('tempBasalFunctions.setTempBasal', function ( ) {
         requestedTemp.rate.should.equal(2.8);
         requestedTemp.duration.should.equal(30);
     });
-    
+
     it('should temp to 0 when requested rate is less then 0 * current_basal', function () {
         var profile = { "current_basal":0.7,"max_daily_basal":1.3,"max_basal":10.0 };
         var requestedTemp = tempBasalFunctions.setTempBasal(-1, 30, profile, rt);

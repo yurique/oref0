@@ -4,7 +4,7 @@ import { InsulineCurve } from '../types/InsulineCurve'
 import type { Profile } from '../types/Profile'
 import type { InsulinTreatment } from './InsulinTreatment'
 import { isBolusTreatment } from './InsulinTreatment'
-import calculate from './calculate'
+import { calculate } from './calculate'
 
 interface Options {
     treatments: InsulinTreatment[]
@@ -12,9 +12,8 @@ interface Options {
     autosens?: Autosens | undefined
 }
 
-export default function iobTotal(opts: Options, time: Date) {
+export function iobTotal(opts: Options, time: Date) {
     const now = time.getTime()
-    const iobCalc = calculate
     const treatments = opts.treatments
     const profile_data = opts.profile
     let dia = profile_data.dia || 3
@@ -87,7 +86,8 @@ export default function iobTotal(opts: Options, time: Date) {
             const dia_ago = now - dia * 60 * 60 * 1000
             if (treatment.date > dia_ago) {
                 // tIOB = total IOB
-                const tIOB = iobCalc(treatment, time, curve, dia, peak, profile_data)
+                const tIOB = calculate(treatment, time, curve, dia, peak, profile_data)
+
                 if (tIOB && tIOB.iobContrib) {
                     iob += tIOB.iobContrib
                 }
@@ -123,3 +123,5 @@ export default function iobTotal(opts: Options, time: Date) {
         time: time,
     }
 }
+
+export default iobTotal

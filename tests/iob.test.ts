@@ -1,9 +1,9 @@
-'use strict';
 
 require('should');
 
-var moment = require('moment');
-var iob = require('../lib/iob');
+import moment from 'moment'
+import iob from '../lib/iob'
+import { Preferences } from '../lib/types/Preferences';
 
 describe('IOB', function() {
 
@@ -16,7 +16,7 @@ describe('IOB', function() {
             'minutes': 0
         }];
 
-        var now = Date.now(),
+        var now = Date.parse('2024-08-13T13:30:00.000Z'),
             timestamp = new Date(now).toISOString(),
             inputs = {
                 clock: timestamp,
@@ -30,7 +30,11 @@ describe('IOB', function() {
                     //bolussnooze_dia_divisor: 2,
                     basalprofile: basalprofile,
                     current_basal: 1,
-                    max_daily_basal: 1
+                    max_daily_basal: 1,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
+                    curve: 'bilinear',
                 }
 
             };
@@ -80,7 +84,10 @@ describe('IOB', function() {
                     basalprofile: basalprofile,
                     current_basal: 1,
                     max_daily_basal: 1,
-                    curve: 'ultra-rapid'
+                    curve: 'ultra-rapid',
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -132,7 +139,10 @@ describe('IOB', function() {
                     basalprofile: basalprofile,
                     current_basal: 1,
                     max_daily_basal: 1,
-                    curve: 'ultra-rapid'
+                    curve: 'ultra-rapid',
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -183,7 +193,10 @@ describe('IOB', function() {
                     basalprofile: basalprofile,
                     current_basal: 1,
                     max_daily_basal: 1,
-                    curve: 'ultra-rapid'
+                    curve: 'ultra-rapid',
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -236,7 +249,10 @@ describe('IOB', function() {
                     basalprofile: basalprofile,
                     current_basal: 1,
                     max_daily_basal: 1,
-                    curve: 'ultra-rapid'
+                    curve: 'ultra-rapid',
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -290,7 +306,10 @@ describe('IOB', function() {
                     basalprofile: basalprofile,
                     current_basal: 1,
                     max_daily_basal: 1,
-                    curve: 'ultra-rapid'
+                    curve: 'ultra-rapid',
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -342,7 +361,10 @@ describe('IOB', function() {
                     basalprofile: basalprofile,
                     current_basal: 1,
                     max_daily_basal: 1,
-                    curve: 'rapid-acting'
+                    curve: 'rapid-acting',
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -389,7 +411,10 @@ describe('IOB', function() {
                     basalprofile: basalprofile,
                     current_basal: 1,
                     max_daily_basal: 1,
-                    curve: 'rapid-acting'
+                    curve: 'rapid-acting',
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -472,15 +497,16 @@ describe('IOB', function() {
                     current_basal: 1,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
         var iobInputs = inputs;
         var iobRes = iob(iobInputs)
         var iobNow = iobRes[0];
-
-        console.log('iobRes', iobRes)
 
         //console.log(iobNow);
         iobNow.iob.should.be.lessThan(1);
@@ -533,12 +559,18 @@ describe('IOB', function() {
             profile: {
                 dia: 3,
                 //bolussnooze_dia_divisor: 2,
-                basalprofile: basalprofile
+                current_basal: 1,
+                max_daily_basal: 1,
+                basalprofile: basalprofile,
+                sens: 5,
+                min_bg: 100,
+                max_bg: 100,
+                curve: 'bilinear',
             }
         };
 
         var hourLaterInputs = inputs;
-        hourLaterInputs.clock = moment('2016-06-13 01:30:00.000');
+        hourLaterInputs.clock = new Date('2016-06-13 01:30:00.000').toISOString();
         var hourLater = iob(hourLaterInputs)[0];
         hourLater.iob.should.be.lessThan(0.5);
         hourLater.iob.should.be.greaterThan(0.4);
@@ -597,12 +629,16 @@ describe('IOB', function() {
                     current_basal: 0.1,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    basalprofile: basalprofile
+                    basalprofile: basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
+                    curve: 'bilinear',
                 }
             };
 
         var hourLaterInputs = inputs;
-        hourLaterInputs.clock = moment('2016-06-13 00:45:00.000'); //new Date(now + (30 * 60 * 1000)).toISOString();
+        hourLaterInputs.clock = new Date('2016-06-13 00:45:00.000').toISOString();
         var hourLater = iob(hourLaterInputs)[0];
 
         hourLater.iob.should.be.lessThan(0.8);
@@ -619,7 +655,7 @@ describe('IOB', function() {
         }];
 
         var startingPoint = moment('2016-06-13 00:30:00.000');
-        var timestamp = startingPoint;
+        var timestamp = startingPoint.toISOString();
         var timestampEarly = startingPoint.clone().subtract(30, 'minutes');
 
         var inputs = {
@@ -640,7 +676,11 @@ describe('IOB', function() {
                 current_basal: 0.1,
                 max_daily_basal: 1,
                 //bolussnooze_dia_divisor: 2,
-                basalprofile: basalprofile
+                basalprofile: basalprofile,
+                sens: 5,
+                min_bg: 100,
+                max_bg: 100,
+                curve: 'bilinear',
             }
         };
 
@@ -667,12 +707,15 @@ describe('IOB', function() {
                 current_basal: 0.1,
                 max_daily_basal: 1,
                 //bolussnooze_dia_divisor: 2,
-                basalprofile: basalprofile
+                basalprofile: basalprofile,
+                sens: 5,
+                min_bg: 100,
+                max_bg: 100,
             }
         };
 
         var hourLaterInputs = inputs;
-        hourLaterInputs.clock = moment('2016-06-13 00:30:00.000');
+        hourLaterInputs.clock = new Date('2016-06-13 00:30:00.000').toISOString();
         var hourLater = iob(hourLaterInputs)[0];
 
         var inputs = {
@@ -713,7 +756,10 @@ describe('IOB', function() {
                 current_basal: 0.1,
                 max_daily_basal: 1,
                 //bolussnooze_dia_divisor: 2,
-                basalprofile: basalprofile
+                basalprofile: basalprofile,
+                sens: 5,
+                min_bg: 100,
+                max_bg: 100,
             }
         };
 
@@ -772,12 +818,15 @@ describe('IOB', function() {
                     current_basal: 0.1,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    basalprofile: basalprofile
+                    basalprofile: basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
         var hourLaterInputs = inputs;
-        hourLaterInputs.clock = moment('2016-06-14 00:45:00.000');
+        hourLaterInputs.clock = new Date('2016-06-14 00:45:00.000').toISOString();
         var hourLater = iob(hourLaterInputs)[0];
 
         hourLater.iob.should.be.lessThan(1);
@@ -829,7 +878,10 @@ describe('IOB', function() {
                     suspend_zeros_iob: true,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -865,7 +917,10 @@ describe('IOB', function() {
                 suspend_zeros_iob: true,
                 max_daily_basal: 1,
                 //bolussnooze_dia_divisor: 2,
-                'basalprofile': basalprofile
+                'basalprofile': basalprofile,
+                sens: 5,
+                min_bg: 100,
+                max_bg: 100,
             }
         };
 
@@ -931,7 +986,10 @@ describe('IOB', function() {
                     suspend_zeros_iob: true,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -966,7 +1024,10 @@ describe('IOB', function() {
                     suspend_zeros_iob: true,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -1033,7 +1094,10 @@ describe('IOB', function() {
                     suspend_zeros_iob: true,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -1088,7 +1152,10 @@ describe('IOB', function() {
                 suspend_zeros_iob: true,
                 max_daily_basal: 1,
                 //bolussnooze_dia_divisor: 2,
-                'basalprofile': basalprofile
+                'basalprofile': basalprofile,
+                sens: 5,
+                min_bg: 100,
+                max_bg: 100,
             }
         };
 
@@ -1144,7 +1211,10 @@ describe('IOB', function() {
                     suspend_zeros_iob: true,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -1178,7 +1248,10 @@ describe('IOB', function() {
                 current_basal: 1,
                 suspend_zeros_iob: true,
                 max_daily_basal: 1,
-                'basalprofile': basalprofile
+                'basalprofile': basalprofile,
+                sens: 5,
+                min_bg: 100,
+                max_bg: 100,
             }
         };
 
@@ -1236,7 +1309,10 @@ describe('IOB', function() {
                     suspend_zeros_iob: true,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -1267,7 +1343,10 @@ describe('IOB', function() {
                 suspend_zeros_iob: true,
                 max_daily_basal: 1,
                 //bolussnooze_dia_divisor: 2,
-                'basalprofile': basalprofile
+                'basalprofile': basalprofile,
+                sens: 5,
+                min_bg: 100,
+                max_bg: 100,
             }
         };
 
@@ -1323,7 +1402,10 @@ describe('IOB', function() {
                     suspend_zeros_iob: true,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -1354,7 +1436,10 @@ describe('IOB', function() {
                     suspend_zeros_iob: true,
                     max_daily_basal: 1,
                     //bolussnooze_dia_divisor: 2,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -1384,34 +1469,37 @@ describe('IOB', function() {
         var endPoint = new Date('2016-06-13 01:00:00.000');
 
         var inputs = {
-            clock: endPoint,
+            clock: endPoint.toISOString(),
             history: [{
                 _type: 'TempBasalDuration',
                 'duration (min)': 30,
-                date: startingPoint,
-                timestamp: startingPoint
+                date: startingPoint.getTime(),
+                timestamp: startingPoint.toISOString()
             }, {
                 _type: 'TempBasal',
                 rate: 0.1,
-                date: startingPoint,
-                timestamp: startingPoint
+                date: startingPoint.getTime(),
+                timestamp: startingPoint.toISOString()
             }, {
                 _type: 'TempBasal',
                 rate: 2,
-                date: startingPoint2,
-                timestamp: startingPoint2
+                date: startingPoint2.getTime(),
+                timestamp: startingPoint2.toISOString()
             }, {
                 _type: 'TempBasalDuration',
                 'duration (min)': 30,
-                date: startingPoint2,
-                timestamp: startingPoint2
+                date: startingPoint2.getTime(),
+                timestamp: startingPoint2.toISOString()
             }],
             profile: {
                 dia: 3,
                 current_basal: 2,
                 max_daily_basal: 2,
                 //bolussnooze_dia_divisor: 2,
-                'basalprofile': basalprofile
+                'basalprofile': basalprofile,
+                sens: 5,
+                min_bg: 100,
+                max_bg: 100,
             }
         };
 
@@ -1459,7 +1547,10 @@ describe('IOB', function() {
                     dia: 3,
                     current_basal: 1,
                     max_daily_basal: 1,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -1511,7 +1602,10 @@ describe('IOB', function() {
                     current_basal: 2,
                     max_daily_basal: 2,
                     //bolussnooze_dia_divisor: 2,
-                    'basalprofile': basalprofile
+                    'basalprofile': basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -1523,6 +1617,8 @@ describe('IOB', function() {
         hourLater.iob.should.be.greaterThan(-1);
     });
 
+    // oref 0.8: basalprofile should be always defined
+    /*
     it('should show 0 IOB with Temp Basals if duration is not found', function() {
 
         var now = Date.now(),
@@ -1541,7 +1637,10 @@ describe('IOB', function() {
                     dia: 3,
                     current_basal: 1,
                     max_daily_basal: 1,
-                    //bolussnooze_dia_divisor: 2
+                    //bolussnooze_dia_divisor: 2,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -1551,8 +1650,16 @@ describe('IOB', function() {
 
         hourLater.iob.should.equal(0);
     });
+    */
 
     it('should show 0 IOB with Temp Basals if basal is percentage based', function() {
+
+        var basalprofile = [{
+            'i': 0,
+            'start': '00:00:00',
+            'rate': 2,
+            'minutes': 0
+        }];
 
         var now = Date.now(),
             timestamp = new Date(now).toISOString(),
@@ -1577,7 +1684,11 @@ describe('IOB', function() {
                     dia: 3,
                     current_basal: 1,
                     max_daily_basal: 1,
-                    //bolussnooze_dia_divisor: 2
+                    //bolussnooze_dia_divisor: 2,
+                    basalprofile: basalprofile,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
                 }
             };
 
@@ -1612,7 +1723,11 @@ describe('IOB', function() {
                     //bolussnooze_dia_divisor: 2,
                     basalprofile: basalprofile,
                     current_basal: 1,
-                    max_daily_basal: 1
+                    max_daily_basal: 1,
+                    sens: 5,
+                    min_bg: 100,
+                    max_bg: 100,
+                    curve: 'bilinear',
                 }
 
             };

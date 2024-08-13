@@ -2,7 +2,7 @@
 // oref0/tests directory whose name ends in .sh, generates a separate test
 // which runs it and asserts that it exits with status 0 (success).
 
-var should = require('should');
+require('should')
 import * as fs from 'fs'
 import * as path from 'path'
 import * as child_process from 'child_process'
@@ -13,14 +13,14 @@ describe("shell-script tests", function() {
         if(filename.endsWith(".sh"))
             bashUnitTestFiles.push(path.join("tests", filename));
     });
-    
+
     bashUnitTestFiles.forEach(function(testFile) {
         it(testFile, function() {
             var utilProcess = child_process.spawnSync(testFile, [], {
                 timeout: 120000, //milliseconds
                 encoding: "utf-8",
             });
-            
+
             //console.error("=================");
             //console.error(testFile);
             //console.error("=================");

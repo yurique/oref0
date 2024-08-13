@@ -4,7 +4,7 @@ import { findInsulin } from '../iob/history'
 import * as basal from '../profile/basal'
 import { isfLookup } from '../profile/isf'
 import type { BasalSchedule } from '../types/BasalSchedule'
-import { getGlucose, type GlucoseEntry } from '../types/GlucoseEntry'
+import { reduceWithGlucoseAndDate, type GlucoseEntry } from '../types/GlucoseEntry'
 
 export interface DetectCOBInput {
     glucose_data: ReadonlyArray<GlucoseEntry>
@@ -14,29 +14,12 @@ export interface DetectCOBInput {
     ciTime?: number
 }
 
-function getDateFromEntry(entry: GlucoseEntry) {
-    if (entry.date) {
-        return entry.date
-    } else if (entry.display_time) {
-        return Date.parse(entry.display_time)
-    } else if (entry.dateString) {
-        return Date.parse(entry.dateString)
-    }
-
-    throw new TypeError('Unable to find a date in GlucoseEntry')
-}
-
 /**
  * @todo: does it works with profile.carb_ratio === undefined?
  */
-function detectCarbAbsorption(inputs: DetectCOBInput) {
-    const glucose_data = inputs.glucose_data.reduce(
-        (b, a) => {
-            const glucose = getGlucose(a)
-            return glucose ? [...b, { ...a, glucose, date: getDateFromEntry(a) }] : b
-        },
-        [] as (GlucoseEntry & { glucose: number; date: number })[]
-    )
+export function detectCarbAbsorption(inputs: DetectCOBInput) {
+    const glucose_data = reduceWithGlucoseAndDate(inputs.glucose_data)
+
     let iob_inputs = inputs.iob_inputs
     const basalprofile = inputs.basalprofile
     /* TODO why does declaring profile break tests-command-behavior.tests.sh?
@@ -55,7 +38,7 @@ function detectCarbAbsorption(inputs: DetectCOBInput) {
     }
 
     let carbsAbsorbed = 0
-    const bucketed_data = glucose_data.slice(0, 1)
+    const bucketed_data: Array<{ date: number; glucose: number }> = glucose_data.slice(0, 1)
     let j = 0
     let foundPreMealBG = false
     let lastbgi = 0
@@ -242,4 +225,4 @@ function detectCarbAbsorption(inputs: DetectCOBInput) {
     }
 }
 
-export default module.exports = detectCarbAbsorption
+export default detectCarbAbsorption

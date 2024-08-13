@@ -30,3 +30,5 @@ export function updateGlucoseStats(options: Options) {
 
     return options.glucose_hist
 }
+
+export default updateGlucoseStats

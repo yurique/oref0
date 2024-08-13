@@ -1,4 +1,4 @@
-var should = require('should');
+import { reduce as reduce_boluses } from '../lib/bolus'
 
 describe('bolus', function () {
     var bolushistory = [
@@ -28,9 +28,8 @@ describe('bolus', function () {
         }
     ];
     it('should not skip closely-timed boluses', function () {
-        var reduce_boluses = require('../lib/bolus');
         var vals = reduce_boluses(bolushistory);
-        vals.length.should.equal(1);
-        vals[0].insulin.should.equal('3.2');
+        expect(vals.length).toStrictEqual(1)
+        expect(vals[0].insulin).toStrictEqual(3.2)
     })
 });

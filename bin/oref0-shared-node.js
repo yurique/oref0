@@ -67,7 +67,7 @@ function serverListen() {
             console.log('read data', data.toString());
             var command = data.toString().split(' ');
 
-            // Split by space except for inside quotes 
+            // Split by space except for inside quotes
             // (https://stackoverflow.com/questions/16261635/javascript-split-string-by-space-but-ignore-space-in-quotes-notice-not-to-spli)
             var command = data.toString().match(/\\?.|^$/g).reduce((p, c) => {
                 if (c === '"') {
@@ -258,7 +258,7 @@ function jsonWrapper(argv_params) {
     if (!params.filtering_code) {
         return [console.error('Error: No filtering_code'), 1];
     }
-    
+
     var data = requireUtils.safeLoadFile(params.input_file);
     if (!data) {
         // file is empty. For this files json returns nothing
@@ -270,7 +270,7 @@ function jsonWrapper(argv_params) {
         console.error('Error: data is not an array.')
         return ["", 1];
     }
-    
+
     var condFuncs = funcWithReturnFromSnippet(params.filtering_code);
     var filtered = [];
     for (var i = 0; i < data.length; i++) {

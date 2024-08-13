@@ -41,7 +41,7 @@ type Targets = typeof Targets.Type
 const Basals = Schema.NonEmptyArray(BasalSchedule)
 type Basals = typeof Basals.Type
 
-export const Preferences = Schema.Struct({
+export const Preferences = /*#__PURE__*/ Schema.Struct({
     max_iob: Schema.optionalWith(Schema.Int.pipe(Schema.greaterThanOrEqualTo(0)), {
         nullable: true,
         default: () => 0,

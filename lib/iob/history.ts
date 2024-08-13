@@ -1,4 +1,6 @@
 import { Schema } from '@effect/schema'
+import * as A from 'effect/Array'
+import * as Order from 'effect/Order'
 import { tz } from '../date'
 import * as date from '../date'
 import * as basalprofile from '../profile/basal'
@@ -197,7 +199,7 @@ function splitAroundSuspends(
     return events
 }
 
-export default function generate(input: unknown, zeroTempDuration?: number) {
+export function generate(input: unknown, zeroTempDuration?: number) {
     const inputs = Schema.decodeUnknownSync(Input)(input)
     return findInsulin(inputs, zeroTempDuration)
 }
@@ -246,8 +248,8 @@ export function findInsulin(inputs: Input, zeroTempDuration?: number): InsulinTr
         }
     }
 
-    pumpSuspends = pumpSuspends.sort((a, b) => a.date - b.date)
-    pumpResumes = pumpResumes.sort((a, b) => a.date - b.date)
+    pumpSuspends = A.sort(pumpSuspends, Order.struct({ date: Order.number }))
+    pumpResumes = A.sort(pumpResumes, Order.struct({ date: Order.number }))
 
     if (pumpResumes.length > 0) {
         firstResumeTime = pumpResumes[0].timestamp
@@ -656,4 +658,4 @@ export function findInsulin(inputs: Input, zeroTempDuration?: number): InsulinTr
     return all_data.sort((a, b) => a.date - b.date)
 }
 
-//exports = module.exports = generate
+export default generate

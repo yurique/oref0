@@ -1,38 +1,38 @@
+import { Schema } from '@effect/schema'
 import * as A from 'effect/Array'
 import { tz } from '../date'
 import { getIob } from '../iob'
 import { findInsulin } from '../iob/history'
 import * as MealTreatment from '../meal/MealTreatment'
-import find_meals from '../meal/history'
-import percentile from '../percentile'
+import { findMeals } from '../meal/history'
+import { percentile } from '../percentile'
 import { basalLookup } from '../profile/basal'
 import { isfLookup } from '../profile/isf'
-import type { BasalSchedule } from '../types/BasalSchedule'
-import type { CarbEntry } from '../types/CarbEntry'
-import type { GlucoseEntry } from '../types/GlucoseEntry'
-import { getDate, getGlucose } from '../types/GlucoseEntry'
+import { BasalSchedule } from '../types/BasalSchedule'
+import { CarbEntry } from '../types/CarbEntry'
+import { GlucoseEntry, reduceWithGlucoseAndDate } from '../types/GlucoseEntry'
 import type { ISFSensitivity } from '../types/ISFSensitivity'
 import * as TempTarget from '../types/TempTarget'
 
-interface Inputs {
-    glucose_data: GlucoseEntry[]
-    iob_inputs: any
-    basalprofile: BasalSchedule[]
-    retrospective?: boolean
-    carbs: CarbEntry[]
-    temptargets: TempTarget.TempTarget[]
-    deviations?: number
+const Inputs = Schema.Struct({
+    glucose_data: Schema.Array(GlucoseEntry),
+    iob_inputs: Schema.Any,
+    basalprofile: Schema.Array(BasalSchedule),
+    retrospective: Schema.optional(Schema.Boolean),
+    carbs: Schema.Array(CarbEntry),
+    temptargets: Schema.Array(TempTarget.TempTarget),
+    deviations: Schema.optional(Schema.Number),
+})
+
+type Inputs = typeof Inputs.Type
+
+export default function generate(inputs: unknown) {
+    return detectSensitivity(Schema.decodeUnknownSync(Inputs)(inputs))
 }
 
-function detectSensitivity(inputs: Inputs) {
+export function detectSensitivity(inputs: Inputs) {
     //console.error(inputs.glucose_data[0]);
-    const glucose_data = inputs.glucose_data.map(obj => {
-        //Support the NS sgv field to avoid having to convert in a custom way
-        return {
-            ...obj,
-            glucose: getGlucose(obj),
-        }
-    })
+    const glucose_data = reduceWithGlucoseAndDate(inputs.glucose_data)
     //console.error(glucose_data[0]);
     const iob_inputs = inputs.iob_inputs
     const basalprofile = inputs.basalprofile
@@ -41,7 +41,7 @@ function detectSensitivity(inputs: Inputs) {
     let lastSiteChange = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
     // use last 24h worth of data by default
     if (inputs.retrospective) {
-        const firstDate = getDate(glucose_data[0])
+        const firstDate = new Date(glucose_data[0].date)
         if (!firstDate) {
             throw new Error('Unable to find glucose date for first item')
         }
@@ -75,7 +75,7 @@ function detectSensitivity(inputs: Inputs) {
         glucose: inputs.glucose_data,
         //, prepped_glucose: prepped_glucose_data
     }
-    const meals = A.sort(find_meals(mealinputs), MealTreatment.Order)
+    const meals = A.sort(findMeals(mealinputs), MealTreatment.Order)
     //console.error(meals);
 
     const avgDeltas = []
@@ -479,7 +479,7 @@ function detectSensitivity(inputs: Inputs) {
     }
 }
 
-function tempTargetRunning(temptargets: TempTarget.TempTarget[], time: Date) {
+function tempTargetRunning(temptargets: ReadonlyArray<TempTarget.TempTarget>, time: Date) {
     // sort tempTargets by date so we can process most recent first
     const temptargets_data = A.sort(temptargets, TempTarget.Order)
     //console.error(temptargets_data);
@@ -503,5 +503,3 @@ function tempTargetRunning(temptargets: TempTarget.TempTarget[], time: Date) {
 
     return 0
 }
-
-export default exports.module = detectSensitivity

@@ -1,7 +1,6 @@
-'use strict';
 
-var should = require('should');
-var withRawGlucose = require('../lib/with-raw-glucose');
+require('should')
+import {withRawGlucose} from '../lib/with-raw-glucose'
 
 var cals = [{
   scale: 1

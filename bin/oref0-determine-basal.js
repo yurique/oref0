@@ -14,8 +14,8 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 */
-var getLastGlucose = require('../dist/glucose-get-last');
-var determine_basal = require('../dist/determine-basal/determine-basal');
+var getLastGlucose = require('../dist/glucose-get-last').default;
+var determine_basal = require('../dist/determine-basal/determine-basal').default;
 
 /* istanbul ignore next */
 if (!module.parent) {
@@ -116,7 +116,7 @@ if (!module.parent) {
     }
 
     //console.log(carbratio_data);
-    var meal_data = [];
+    var meal_data = {};
     //console.error("meal_input",meal_input);
     if (meal_input && typeof meal_input !== 'undefined') {
         try {
@@ -222,7 +222,7 @@ if (!module.parent) {
         currentTime: currentTime
     }
 
-    var rT = determine_basal(glucose_status, currenttemp, iob_data, profile, autosens_data, meal_data, tempBasalFunctions, params['microbolus'], reservoir_data, currentTime);
+    var rT = determine_basal(input);
 
     if(typeof rT.error === 'undefined') {
         console.log(JSON.stringify(rT));

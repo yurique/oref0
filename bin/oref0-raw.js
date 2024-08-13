@@ -2,7 +2,7 @@
 'use strict';
 
 var safeRequire = require('../dist/require-utils').safeRequire;
-var withRawGlucose = require('../dist/with-raw-glucose');
+var withRawGlucose = require('../dist/with-raw-glucose').default;
 
 /*
  Fills CGM data doesn't already contain an EVG, if we have unfiltered, filtered, and a cal

@@ -18,7 +18,7 @@
 import { Schema } from '@effect/schema'
 import { getMaxSafeBasal, setTempBasal } from '../basal-set-temp'
 import { RecentCarbs } from '../meal/RecentCarbs'
-import round_basal from '../round-basal'
+import { round_basal } from '../round-basal'
 import { Autosens } from '../types/Autosens'
 import { IOB } from '../types/IOB'
 import { LastGlucose } from '../types/LastGlucose'
@@ -140,16 +140,21 @@ function enable_smb(
 const Input = Schema.Struct({
     glucose: LastGlucose,
     currenttemp: TempBasal,
-    iobTicks: Schema.Array(IOB),
+    iobTicks: Schema.Union(IOB, Schema.Array(IOB)),
     profile: Profile,
-    autosens: Schema.optional(Autosens),
-    meal: RecentCarbs,
-    microBolusAllowed: Schema.Boolean,
-    reservoir: Schema.Number,
-    currentTime: Schema.optional(Schema.Union(Schema.DateFromSelf, Schema.DateFromString).pipe(Schema.validDate())),
+    autosens: Schema.optionalWith(Autosens, { nullable: true }),
+    meal: Schema.optionalWith(RecentCarbs, { nullable: true, default: () => RecentCarbs.make({}) }),
+    microBolusAllowed: Schema.optional(Schema.Boolean),
+    reservoir: Schema.optionalWith(Schema.Union(Schema.Number, Schema.NumberFromString), {
+        nullable: true,
+    }),
+    currentTime: Schema.optionalWith(
+        Schema.Union(Schema.DateFromSelf, Schema.DateFromString).pipe(Schema.validDate()),
+        { nullable: true }
+    ),
 })
 
-function generate(input: unknown) {
+export function generate(input: unknown) {
     const r = Schema.decodeUnknownSync(Input)(input)
     return determine_basal(
         r.glucose,
@@ -167,13 +172,13 @@ function generate(input: unknown) {
 export const determine_basal = function determine_basal(
     glucose_status: LastGlucose,
     currenttemp: TempBasal,
-    iob_ticks: ReadonlyArray<IOB>,
+    iob_ticks: IOB | ReadonlyArray<IOB>,
     profile: Profile,
     autosens_data: Autosens | undefined,
     meal_data: RecentCarbs,
-    microBolusAllowed: boolean,
-    reservoir_data: number,
-    currentTime?: Date
+    microBolusAllowed: boolean = true,
+    reservoir_data: number | undefined = undefined,
+    currentTime: Date | undefined = undefined
 ) {
     // Set variables required for evaluating error conditions
     let rT: {
@@ -661,7 +666,8 @@ export const determine_basal = function determine_basal(
     const predCIs: number[] = []
     let COBpredBG: number | undefined
     let UAMpredBG: number | undefined
-    try {
+
+    if (Array.isArray(iob_ticks)) {
         iob_ticks.forEach(iobTick => {
             //console.error(iobTick);
             const predBGI = round(-iobTick.activity * sens * 5, 2)
@@ -756,8 +762,7 @@ export const determine_basal = function determine_basal(
         })
         // set eventualBG to include effect of carbs
         //console.error("PredBGs:",JSON.stringify(predBGs));
-    } catch (e) {
-        console.error(e)
+    } else {
         console.error('Problem with iobArray.  Optional feature Advanced Meal Assist disabled')
     }
     if (meal_data.mealCOB) {
@@ -1376,4 +1381,4 @@ export const determine_basal = function determine_basal(
     }
 }
 
-export default module.exports = generate
+export default generate

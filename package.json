@@ -5,7 +5,7 @@
     "scripts": {
         "test": "jest",
         "global-install": "npm install && npm run build && sudo npm link && sudo npm link oref0 && sudo npm install -g && npm install -g",
-        "build": "tsc",
+        "build": "rm -rf ./dist && tsc --project tsconfig.build.json",
         "lint": "eslint lib/",
         "watch": "tsc --watch"
     },
@@ -122,6 +122,7 @@
         "@types/lodash": "^4.17.0",
         "@types/mocha": "^10.0.6",
         "@types/node": "^16.0",
+        "@types/request": "^2.48.12",
         "@types/should": "^13.0.0",
         "@typescript-eslint/eslint-plugin": "^8.0.1",
         "@typescript-eslint/parser": "^8.0.1",

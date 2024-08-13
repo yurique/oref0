@@ -1,9 +1,7 @@
-'use strict';
 
 require('should');
 
-var moment = require('moment');
-var stats = require('../lib/calc-glucose-stats');
+import * as stats from '../lib/calc-glucose-stats'
 
 describe('NOISE', function() {
   it('should calculate Clean Sensor Noise', () => {

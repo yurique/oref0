@@ -14,7 +14,7 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 */
-var detectSensitivity = require('../dist/determine-basal/autosens');
+var detectSensitivity = require('../dist/determine-basal/autosens').default;
 
 if (!module.parent) {
     var argv = require('yargs')

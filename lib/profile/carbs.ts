@@ -1,6 +1,6 @@
 import type { FinalResult } from '../bin/utils'
 import { console_error } from '../bin/utils'
-import getTime from '../medtronic-clock'
+import { getTime } from '../medtronic-clock'
 import type { Preferences } from '../types/Preferences'
 
 export function carbRatioLookup(final_result: FinalResult, inputs: Preferences) {

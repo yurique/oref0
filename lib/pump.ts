@@ -1,15 +1,14 @@
-'use strict'
+export function translate<A>(treatments: ReadonlyArray<A>): A[] {
+    const results: any[] = []
 
-function translate(treatments) {
-    const results = []
-
-    function step(current) {
+    function step(current: any) {
         let invalid = false
-        switch (current._type) {
+        const item = { ...current }
+        switch (item._type) {
             case 'CalBGForPH':
-                current.eventType = 'BG Check'
-                current.glucose = current.amount
-                current.glucoseType = 'Finger'
+                item.eventType = 'BG Check'
+                item.glucose = item.amount
+                item.glucoseType = 'Finger'
                 break
             case 'BasalProfileStart':
             case 'ResultDailyTotal':
@@ -24,11 +23,11 @@ function translate(treatments) {
         }
 
         if (!invalid) {
-            results.push(current)
+            results.push(item)
         }
     }
     treatments.forEach(step)
     return results
 }
 
-exports = module.exports = translate
+export default translate

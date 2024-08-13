@@ -1,4 +1,4 @@
-export default function getTime(minutes: number) {
+export function getTime(minutes: number) {
     const baseTime = new Date()
     baseTime.setHours(0)
     baseTime.setMinutes(0)
@@ -6,3 +6,5 @@ export default function getTime(minutes: number) {
 
     return baseTime.getTime() + minutes * 60 * 1000
 }
+
+export default getTime

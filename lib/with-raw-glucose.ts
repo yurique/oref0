@@ -1,19 +1,18 @@
-'use strict'
-
-function cleanCal(cal) {
+function cleanCal(cal: any) {
     const clean = {
         scale: parseFloat(cal.scale) || 0,
         intercept: parseFloat(cal.intercept) || 0,
         slope: parseFloat(cal.slope) || 0,
     }
 
-    clean.valid = !(clean.slope === 0 || clean.unfiltered === 0 || clean.scale === 0)
-
-    return clean
+    return {
+        ...clean,
+        valid: !(clean.slope === 0 || clean.scale === 0),
+    }
 }
 
-module.exports = function withRawGlucose(entry, cals, maxRaw) {
-    maxRaw = maxRaw || 200
+export function withRawGlucose(entry: any, cals: any, maxRawInput?: any) {
+    const maxRaw = maxRawInput || 200
 
     if (entry.type === 'mbg' || entry.type === 'cal') {
         return entry
@@ -53,3 +52,5 @@ module.exports = function withRawGlucose(entry, cals, maxRaw) {
     }
     return entry
 }
+
+export default withRawGlucose

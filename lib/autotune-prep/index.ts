@@ -1,12 +1,12 @@
 // Prep step before autotune.js can run; pulls in meal (carb) data and calls categorize.js
 
 import { Schema } from '@effect/schema'
-import find_meals from '../meal/history'
+import { findMeals } from '../meal/history'
 import { CarbEntry } from '../types/CarbEntry'
 import * as GlucoseEntry from '../types/GlucoseEntry'
 import { NightscoutTreatment } from '../types/NightscoutTreatment'
 import { Profile } from '../types/Profile'
-import categorize from './categorize'
+import { categorizeBGDatums as categorize } from './categorize'
 
 const Input = Schema.Struct({
     history: Schema.Array(NightscoutTreatment),
@@ -18,10 +18,10 @@ const Input = Schema.Struct({
     tune_insulin_curve: Schema.optionalWith(Schema.Boolean, { default: () => false }),
 })
 
-function generate(input: unknown) {
+export function generate(input: unknown) {
     //console.error(inputs);
     const inputs = Schema.decodeUnknownSync(Input)(input)
-    const treatments = find_meals(inputs)
+    const treatments = findMeals(inputs)
     const profile = inputs.profile
 
     const opts = {
@@ -191,4 +191,4 @@ function generate(input: unknown) {
     return { ...categorize(opts), diaDeviations, peakDeviations }
 }
 
-export default module.exports = generate
+export default generate

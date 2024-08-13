@@ -8,7 +8,7 @@
 
 var dirsToCheck = [ "bin", "lib", "www" ];
 
-var should = require('should');
+require('should')
 import * as fs from 'fs';
 import * as path from 'path'
 import * as child_process from 'child_process'
@@ -38,28 +38,28 @@ function checkFile(filename, type)
             timeout: 4000, //milliseconds
             encoding: "utf-8",
         });
-        
+
         should.equal(script.status, 0, "Shell script "+filename+" contains a syntax error.");
         break;
-        
+
     case "js":
         var js = child_process.spawnSync("node", ["--check", filename], {
             timeout: 4000, //milliseconds
             encoding: "utf-8",
         });
-        
+
         should.equal(js.status, 0, "Javascript file "+filename+" contains a syntax error.");
         break;
-    
+
     case "py":
         // Check whether there's a .pyc file
         var compiledName = pythonCompiledNameOf(filename);
-        
+
         var py = child_process.spawnSync("python3", ["-m", "py_compile", filename], {
             timeout: 4000, //milliseconds
             encoding: "utf-8",
         });
-        
+
         should.equal(py.status, 0, "Python file "+filename+" contains a syntax error.");
         break;
     }

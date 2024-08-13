@@ -18,7 +18,7 @@
 */
 
 var fs = require('fs');
-var generate = require('../dist/profile/');
+var generate = require('../dist/profile/').default;
 var shared_node_utils = require('../dist/bin/utils');
 var console_error = shared_node_utils.console_error;
 var console_log = shared_node_utils.console_log;

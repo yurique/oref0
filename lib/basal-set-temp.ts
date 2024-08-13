@@ -1,3 +1,4 @@
+import { round_basal } from './round-basal'
 import type { Profile } from './types/Profile'
 
 interface RT {
@@ -27,11 +28,11 @@ export function getMaxSafeBasal(profile: Profile) {
     )
 }
 
-export function setTempBasal(rate: number, duration: number, profile: Profile, rT: RT, currenttemp?: Temp) {
+export function setTempBasal(rateInput: number, duration: number, profile: Profile, rT: RT, currenttemp?: Temp) {
     //var maxSafeBasal = Math.min(profile.max_basal, 3 * profile.max_daily_basal, 4 * profile.current_basal);
 
     const maxSafeBasal = getMaxSafeBasal(profile)
-    const round_basal = require('./round-basal')
+    let rate = rateInput
 
     if (rate < 0) {
         rate = 0
