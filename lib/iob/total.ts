@@ -3,7 +3,7 @@ import type { Autosens } from '../types/Autosens'
 import { InsulineCurve } from '../types/InsulineCurve'
 import type { Profile } from '../types/Profile'
 import type { InsulinTreatment } from './InsulinTreatment'
-import { isBolusTreatment } from './InsulinTreatment'
+import { isBasalTickTreatment, isBolusTreatment } from './InsulinTreatment'
 import { calculate } from './calculate'
 
 interface Options {
@@ -61,7 +61,7 @@ export function iobTotal(opts: Options, time: Date) {
         },
     }
 
-    let curve = profile_data.curve || 'bilinear'
+    let curve = profile_data.curve ?? 'bilinear'
 
     // @todo: remove when decoding
     if (!Schema.is(InsulineCurve)(curve)) {
@@ -99,8 +99,9 @@ export function iobTotal(opts: Options, time: Date) {
                 // {"insulin":0.05,"date":1507266530000,"created_at":"2017-10-06T05:08:50.000Z"}
                 // boluses look like:
                 // {"timestamp":"2017-10-05T22:06:31-07:00","started_at":"2017-10-06T05:06:31.000Z","date":1507266391000,"insulin":0.5}
-                if (isBolusTreatment(treatment) && treatment.insulin && tIOB && tIOB.iobContrib) {
-                    if (treatment.insulin < 0.1) {
+
+                if (isBolusTreatment(treatment) && tIOB && tIOB.iobContrib) {
+                    if (isBasalTickTreatment(treatment)) {
                         basaliob += tIOB.iobContrib
                         netbasalinsulin += treatment.insulin
                     } else {

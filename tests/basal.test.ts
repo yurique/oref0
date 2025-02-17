@@ -1,5 +1,5 @@
 import * as basal from '../lib/profile/basal'
-import { BasalSchedule } from '../lib/types/Profile';
+import { BasalSchedule } from '../lib/types/BasalSchedule';
 
 describe('Basal', function ( ) {
 

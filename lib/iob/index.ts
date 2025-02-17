@@ -2,7 +2,7 @@ import { Schema } from '@effect/schema'
 import { tz } from '../date'
 import { Input } from './Input'
 import type { InsulinTreatment } from './InsulinTreatment'
-import { isBasalTreatment, isBolusTreatment } from './InsulinTreatment'
+import { isBasalTreatment, isBolusTreatment, isBasalTickTreatment } from './InsulinTreatment'
 import { findInsulin } from './history'
 import { iobTotal as sum } from './total'
 
@@ -67,9 +67,9 @@ export const getIob = (inputs: Input, currentIOBOnly: boolean = false, inputTrea
 
     //console.error(treatments[treatments.length-1]);
     treatments.forEach(treatment => {
-        if (isBolusTreatment(treatment) && treatment.insulin > 0) {
+        if (isBolusTreatment(treatment) && !isBasalTickTreatment(treatment) && treatment.insulin > 0) {
             if (treatment.started_at.getTime() > lastBolusTime) {
-                lastBolusTime = treatment.started_at.getTime()
+                lastBolusTime = Math.max(lastBolusTime, treatment.started_at.getTime()) // treatment.started_at.getTime()
             }
             //lastBolusTime = Math.max(lastBolusTime, treatment.started_at.getTime());
             //console.error(treatment.insulin,treatment.started_at,lastBolusTime);

@@ -54,8 +54,7 @@ function splitTimespanWithOneSplitter(event: BasalTreatment, splitter: Splitter)
         event1Duration = splitPoint - startMinutes
     }
 
-    const event1EndDate = new Date(event.started_at)
-    event1EndDate.setMinutes(event1EndDate.getMinutes() + event1Duration)
+    const event1EndDate = new Date(event.started_at.getTime() + event1Duration * 60 * 1000)
 
     const event1 = {
         ...event,
@@ -160,8 +159,7 @@ function splitAroundSuspends(
                 // event started before the suspend, but finished after the suspend started
 
                 if (events[j].date + events[j].duration * 60 * 1000 > suspend.date + suspend.duration * 60 * 1000) {
-                    const event2StartDate = new Date(suspend.started_at)
-                    event2StartDate.setMinutes(event2StartDate.getMinutes() + suspend.duration)
+                    const event2StartDate = new Date(suspend.started_at.getTime() + suspend.duration * 60 * 1000)
 
                     events.push({
                         ...events[j],
@@ -186,8 +184,7 @@ function splitAroundSuspends(
                     60 /
                     1000
 
-                const eventStartDate = new Date(suspend.started_at)
-                eventStartDate.setMinutes(eventStartDate.getMinutes() + suspend.duration)
+                const eventStartDate = new Date(suspend.started_at.getTime() + suspend.duration * 60 * 1000)
 
                 events[j].timestamp = date.format(eventStartDate)
                 events[j].started_at = tz(new Date(events[j].timestamp))
@@ -205,11 +202,12 @@ export function generate(input: unknown, zeroTempDuration?: number) {
 }
 
 export function findInsulin(inputs: Input, zeroTempDuration?: number): InsulinTreatment[] {
-    const pumpHistory = [...inputs.history, ...(inputs.history24 || [])]
+    const pumpHistory = [...inputs.history, ...(inputs.history24 ?? [])]
     const profile_data = inputs.profile
     const autosens_data = inputs.autosens
     let tempHistory: BasalTreatment[] = []
     const tempBoluses: BolusTreatment[] = []
+    const basalTicks: BolusTreatment[] = []
     let pumpSuspends: PumpSuspendResume[] = []
     let pumpResumes: PumpSuspendResume[] = []
     let suspendedPrior = false
@@ -466,7 +464,7 @@ export function findInsulin(inputs: Input, zeroTempDuration?: number): InsulinTr
             started_at: started_atTemp,
             date: started_atTemp.getTime(),
             rate: 0,
-            duration: zeroTempDuration || 0,
+            duration: zeroTempDuration ?? 0,
         })
     }
 
@@ -616,10 +614,9 @@ export function findInsulin(inputs: Input, zeroTempDuration?: number): InsulinTr
             let sensitivityRatio
             const profile = profile_data
             const normalTarget = 100 // evaluate high/low temptarget against 100, not scheduled basal (which might change)
-            let halfBasalTarget = 160 // when temptarget is 160 mg/dL, run 50% basal (120 = 75%; 140 = 60%)
-            if (profile.half_basal_exercise_target) {
-                halfBasalTarget = profile.half_basal_exercise_target
-            }
+
+            // when temptarget is 160 mg/dL, run 50% basal (120 = 75%; 140 = 60%)
+            let halfBasalTarget = profile.half_basal_exercise_target ?? 160
             if (profile.exercise_mode && profile.temptargetSet && target_bg && target_bg >= normalTarget + 5) {
                 // w/ target 100, temp target 110 = .89, 120 = 0.8, 140 = 0.67, 160 = .57, and 200 = .44
                 // e.g.: Sensitivity ratio set to 0.8 based on temp target of 120; Adjusting basal from 1.65 to 1.35; ISF from 58.9 to 73.6
@@ -643,17 +640,18 @@ export function findInsulin(inputs: Input, zeroTempDuration?: number): InsulinTr
             const tempBolusSpacing = currentItem.duration / tempBolusCount
             for (j = 0; j < tempBolusCount; j++) {
                 const tempBolusDate = currentItem.date + j * tempBolusSpacing * 60 * 1000
-                tempBoluses.push({
+                basalTicks.push({
                     insulin: tempBolusSize,
                     date: tempBolusDate,
                     started_at: new Date(tempBolusDate),
+                    basal_tick: new Date(tempBolusDate),
                     timestamp: new Date(tempBolusDate).toISOString(),
                 })
             }
         }
     }
 
-    const all_data = [...tempBoluses, ...tempHistory]
+    const all_data = [...tempBoluses, ...tempHistory, ...basalTicks]
 
     return all_data.sort((a, b) => a.date - b.date)
 }
