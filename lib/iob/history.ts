@@ -2,7 +2,6 @@ import { Schema } from '@effect/schema'
 import * as A from 'effect/Array'
 import * as Order from 'effect/Order'
 import { tz } from '../date'
-import * as date from '../date'
 import * as basalprofile from '../profile/basal'
 import { NightscoutTreatment } from '../types/NightscoutTreatment'
 import { PumpHistoryEvent } from '../types/PumpHistoryEvent'
@@ -63,7 +62,7 @@ function splitTimespanWithOneSplitter(event: BasalTreatment, splitter: Splitter)
     const event2 = {
         ...event,
         duration: event.duration - event1Duration,
-        timestamp: date.format(event1EndDate),
+        timestamp: event1EndDate.toISOString(),
         started_at: event1EndDate,
         date: event1EndDate.getTime(),
     }
@@ -163,7 +162,7 @@ function splitAroundSuspends(
 
                     events.push({
                         ...events[j],
-                        timestamp: date.format(event2StartDate),
+                        timestamp: event2StartDate.toISOString(),
                         started_at: tz(event2StartDate),
                         date: suspend.date + suspend.duration * 60 * 1000,
                         duration:
@@ -186,7 +185,7 @@ function splitAroundSuspends(
 
                 const eventStartDate = new Date(suspend.started_at.getTime() + suspend.duration * 60 * 1000)
 
-                events[j].timestamp = date.format(eventStartDate)
+                events[j].timestamp = eventStartDate.toISOString()
                 events[j].started_at = tz(new Date(events[j].timestamp))
                 events[j].date = suspend.date + suspend.duration * 60 * 1000
             }
@@ -456,17 +455,17 @@ export function findInsulin(inputs: Input, zeroTempDuration?: number): InsulinTr
             })
         }
 
-        // Add a temp basal cancel event to ignore future temps and reduce predBG oscillation
-        // start the zero temp 1m in the future to avoid clock skew
-        const started_atTemp = new Date(now.getTime() + 1 * 60 * 1000)
-        tempHistory.push({
-            timestamp: started_atTemp.toISOString(),
-            started_at: started_atTemp,
-            date: started_atTemp.getTime(),
-            rate: 0,
-            duration: zeroTempDuration ?? 0,
-        })
     }
+    // Add a temp basal cancel event to ignore future temps and reduce predBG oscillation
+    // start the zero temp 1m in the future to avoid clock skew
+    const started_atTemp = new Date(now.getTime() + 1 * 60 * 1000)
+    tempHistory.push({
+        timestamp: started_atTemp.toISOString(),
+        started_at: started_atTemp,
+        date: started_atTemp.getTime(),
+        rate: 0,
+        duration: zeroTempDuration ?? 0,
+    })
 
     // Check for overlapping events and adjust event lengths in case of overlap
 
