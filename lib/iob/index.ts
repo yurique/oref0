@@ -16,13 +16,15 @@ interface IOB {
     time: Date
 }
 
+interface LastTemp {
+    date: number
+    duration?: number
+}
+
 interface IOBItem extends IOB {
     iobWithZeroTemp?: IOB
     lastBolusTime?: number
-    lastTemp?: {
-        date: number
-        duration: number
-    }
+    lastTemp?: LastTemp
 }
 
 export const getIob = (inputs: Input, currentIOBOnly: boolean = false, inputTreatments?: InsulinTreatment[]) => {
@@ -60,9 +62,8 @@ export const getIob = (inputs: Input, currentIOBOnly: boolean = false, inputTrea
     const clock = tz(new Date(inputs.clock))
 
     let lastBolusTime = new Date(0).getTime() //clock.getTime());
-    let lastTemp = {
+    let lastTemp: LastTemp = {
         date: new Date(0).getTime(), //clock.getTime());
-        duration: 0,
     }
 
     //console.error(treatments[treatments.length-1]);
