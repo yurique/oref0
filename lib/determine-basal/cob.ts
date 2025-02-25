@@ -38,8 +38,12 @@ export function detectCarbAbsorption(inputs: DetectCOBInput) {
     }
 
     let carbsAbsorbed = 0
-    const bucketed_data: Array<{ date: number; glucose: number }> = glucose_data.slice(0, 1)
-    let j = 0
+    const bucketed_data: { date: number; glucose: number }[] = []
+    bucketed_data.push({
+        date: new Date(glucose_data[0].date).getTime(),
+        glucose: glucose_data[0].glucose,
+    })
+
     let foundPreMealBG = false
     let lastbgi = 0
 
@@ -84,25 +88,26 @@ export function detectCarbAbsorption(inputs: DetectCOBInput) {
             //console.error(elapsed_minutes);
             while (elapsed_minutes > 5) {
                 const previousbgTime: Date = new Date(lastbgTime.getTime() - 5 * 60 * 1000)
-                j++
 
                 const gapDelta = glucose_data[i].glucose - lastbg
                 const previousbg = lastbg + (5 / elapsed_minutes) * gapDelta
-                bucketed_data[j] = {
+                bucketed_data.push({
                     date: previousbgTime.getTime(),
                     glucose: Math.round(previousbg),
-                }
+                })
 
                 elapsed_minutes = elapsed_minutes - 5
                 lastbg = previousbg
                 lastbgTime = new Date(previousbgTime)
             }
         } else if (Math.abs(elapsed_minutes) > 2) {
-            j++
-            bucketed_data[j] = glucose_data[i]
-            bucketed_data[j].date = bgTime.getTime()
+            bucketed_data.push({
+                date: bgTime.getTime(),
+                glucose: glucose_data[i].glucose,
+            })
         } else {
-            bucketed_data[j].glucose = (bucketed_data[j].glucose + glucose_data[i].glucose) / 2
+            const latest = bucketed_data[bucketed_data.length - 1]
+            latest.glucose = (latest.glucose + glucose_data[i].glucose) / 2
         }
 
         lastbgi = i
