@@ -143,7 +143,7 @@ export function findMeals(inputs: Input): MealTreatment[] {
         carbs: strict(),
         bolus: strict(),
     })
-    return sort(dedupeWith<MealTreatment>(mealInputs, eq), Order)
+    return sort(dedupeWith<MealTreatment>(mealInputs, eq), Order).reverse()
 }
 
 export default findMeals
