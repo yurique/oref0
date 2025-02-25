@@ -63,7 +63,7 @@ export function totalRecentCarbs(opts: Options, time: Date): RecentCarbs {
     let mealCOB = 0
 
     // this sorts the treatments collection in order.
-    treatments = A.sort(treatments, MealTreatment.Order)
+    treatments = A.sort(treatments, MealTreatment.Order).reverse()
 
     let carbsToRemove = 0
     let nsCarbsToRemove = 0
