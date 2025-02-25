@@ -98,7 +98,7 @@ export const getLastGlucose = function (input: ReadonlyArray<GlucoseEntry>): Las
     return {
         delta: Math.round(last_delta * 100) / 100,
         glucose: Math.round(now.glucose * 100) / 100,
-        noise: Math.round(now.noise || 0),
+        noise: now.noise && !isNaN(now.noise) ? Math.round(now.noise) : null,
         short_avgdelta: Math.round(short_avgdelta * 100) / 100,
         long_avgdelta: Math.round(long_avgdelta * 100) / 100,
         date: now_date,
