@@ -233,7 +233,7 @@ export const determine_basal = function determine_basal(
     // 38 is an xDrip error state that usually indicates sensor failure
     // all other BG values between 11 and 37 mg/dL reflect non-error-code BG values, so we should zero temp for those
     // First, print out different explanations for each different error condition
-    if (bg <= 10 || bg === 38 || noise >= 3) {
+    if (bg <= 10 || bg === 38 || (noise && noise >= 3)) {
         //Dexcom is in ??? mode or calibrating, or xDrip reports high noise
         rT.reason = 'CGM is calibrating, in ??? state, or noise is high'
     }
@@ -272,7 +272,7 @@ export const determine_basal = function determine_basal(
         }
     }
     // Then, for all such error conditions, cancel any running high temp or shorten any long zero temp, and return.
-    if (bg <= 10 || bg === 38 || noise >= 3 || minAgo > 12 || minAgo < -5 || tooflat) {
+    if (bg <= 10 || bg === 38 || (noise && noise >= 3) || minAgo > 12 || minAgo < -5 || tooflat) {
         if (currenttemp.rate > basal) {
             // high temp is running
             rT.reason += `. Replacing high temp basal of ${currenttemp.rate} with neutral temp of ${basal}`
@@ -305,7 +305,7 @@ export const determine_basal = function determine_basal(
     // and before using target_bg to adjust sensitivityRatio below.
     const max_iob = profile.max_iob // maximum amount of non-bolus IOB OpenAPS will ever deliver
 
-    const carb_ratio = profile.carb_ratio !== undefined ? round(profile.carb_ratio, 2) : 0
+    const carb_ratio = profile.carb_ratio !== undefined ? profile.carb_ratio : 0
 
     // if min and max are set, then set target to their average
     let target_bg: number
@@ -384,7 +384,7 @@ export const determine_basal = function determine_basal(
     }
 
     // Raise target for noisy / raw CGM data.
-    if (glucose_status.noise >= 2) {
+    if (glucose_status.noise && glucose_status.noise >= 2) {
         // increase target at least 10% (default 30%) for raw / noisy data
         const noisyCGMTargetMultiplier = Math.max(1.1, profile.noisyCGMTargetMultiplier || 0)
         // don't allow maxRaw above 250
@@ -939,7 +939,7 @@ export const determine_basal = function determine_basal(
     rT.BGI = convert_bg(bgi, profile)
     rT.deviation = convert_bg(deviation, profile)
     rT.ISF = convert_bg(sens, profile)
-    rT.CR = carb_ratio
+    rT.CR = round(carb_ratio, 2)
     rT.target_bg = convert_bg(target_bg, profile)
     rT.reason = `COB: ${rT.COB}, Dev: ${rT.deviation}, BGI: ${rT.BGI}, ISF: ${rT.ISF}, CR: ${
         rT.CR

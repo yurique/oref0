@@ -3,7 +3,7 @@ import { Schema } from '@effect/schema'
 export const LastGlucose = Schema.Struct({
     delta: Schema.Number,
     glucose: Schema.Number,
-    noise: Schema.Number,
+    noise: Schema.NullOr(Schema.Number),
     short_avgdelta: Schema.Number,
     long_avgdelta: Schema.Number,
     date: Schema.Number,
