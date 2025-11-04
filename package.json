@@ -99,6 +99,7 @@
   },
   "homepage": "https://github.com/openaps/oref0",
   "dependencies": {
+    "yargs": "^13.2.2"
   },
   "devDependencies": {
     "coveralls": "^3.0.3",
